@@ -1,0 +1,872 @@
+/* ========================================
+   excelabu - Excel-like Spreadsheet Component
+   ======================================== */
+
+:root {
+  --excelabu-border: #d0d0d0;
+  --excelabu-header-bg: #f5f5f5;
+  --excelabu-header-active: #e8e8e8;
+  --excelabu-selection-bg: #d4e4f7;
+  --excelabu-selection-border: #217346;
+  --excelabu-active-cell: #ffffff;
+  --excelabu-active-cell-border: #217346;
+  --excelabu-grid-line: #e0e0e0;
+  --excelabu-font: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --excelabu-font-size: 13px;
+  --excelabu-header-font-size: 12px;
+  --excelabu-toolbar-bg: #f8f8f8;
+  --excelabu-formula-bar-bg: #ffffff;
+  --excelabu-sheet-tab-active: #ffffff;
+  --excelabu-sheet-tab-inactive: #e0e0e0;
+  --excelabu-sheet-tab-hover: #f0f0f0;
+  --excelabu-scrollbar-thumb: #c1c1c1;
+  --excelabu-scrollbar-track: #f1f1f1;
+}
+
+/* ========== Container ========== */
+.excelabu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  font-family: var(--excelabu-font);
+  font-size: var(--excelabu-font-size);
+  color: #333;
+  background: #fff;
+  border: 1px solid var(--excelabu-border);
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+/* ========== Menu Bar ========== */
+.excelabu-menu-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--excelabu-toolbar-bg);
+  border-bottom: 1px solid var(--excelabu-border);
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.excelabu-menu-bar button {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #333;
+}
+
+.excelabu-menu-bar button:hover {
+  background: #e0e0e0;
+}
+
+.excelabu-menu-bar .excelabu-lang-btn {
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  min-width: 24px;
+  text-align: center;
+  color: #217346;
+}
+.excelabu-menu-bar .excelabu-lang-btn:hover {
+  background: #d4e4f7;
+  color: #0f4c2a;
+}
+
+.excelabu-menu-bar .excelabu-menu-separator {
+  width: 1px;
+  height: 18px;
+  background: #ccc;
+  margin: 0 2px;
+}
+
+/* ========== Margin Dropdown ========== */
+.excelabu-menu-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.excelabu-margin-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 110;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid var(--excelabu-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+}
+
+.excelabu-margin-menu > div {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.excelabu-margin-menu > div:hover {
+  background: #e8f0fe;
+}
+
+.excelabu-margin-menu > div.active {
+  background: #d4e4f7;
+  font-weight: 600;
+}
+
+.excelabu-margin-menu > div small {
+  font-size: 11px;
+  color: #888;
+  font-weight: normal;
+}
+
+/* ========== Toolbar ========== */
+.excelabu-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 4px 6px;
+  background: var(--excelabu-toolbar-bg);
+  border-bottom: 1px solid var(--excelabu-border);
+  gap: 4px 6px;
+  flex-shrink: 0;
+}
+
+.excelabu-toolbar button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.excelabu-toolbar button:hover {
+  background: #e8e8e8;
+}
+
+.excelabu-toolbar button:active {
+  background: #d0d0d0;
+}
+
+.excelabu-toolbar .excelabu-toggle {
+  font-weight: normal;
+  min-width: 28px;
+}
+.excelabu-toolbar .excelabu-toggle.active {
+  background: #c8daf0;
+  border-color: #6b9cd2;
+}
+
+.excelabu-toolbar select {
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  height: 26px;
+}
+.excelabu-toolbar select:hover {
+  border-color: #999;
+}
+.excelabu-toolbar .excelabu-font-name {
+  min-width: 110px;
+  max-width: 140px;
+}
+.excelabu-toolbar .excelabu-font-size {
+  min-width: 50px;
+}
+
+.excelabu-toolbar input[type="color"] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  vertical-align: middle;
+}
+.excelabu-toolbar .excelabu-color-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+}
+.excelabu-toolbar .excelabu-color-pick:hover {
+  border-color: #999;
+}
+
+/* color picker indicator letters */
+.excelabu-color-indicator {
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  color: #555;
+  margin-right: 2px;
+  user-select: none;
+  flex-shrink: 0;
+}
+svg.excelabu-color-indicator {
+  width: 14px;
+  height: 14px;
+}
+
+.excelabu-toolbar .excelabu-separator {
+  width: 1px;
+  height: 22px;
+  background: #ccc;
+  margin: 0 2px;
+}
+
+/* ========== Border Dropdown ========== */
+.excelabu-border-group {
+  position: relative;
+  display: inline-flex;
+}
+.excelabu-border-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 170px;
+  background: #fff;
+  border: 1px solid var(--excelabu-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  margin-top: 2px;
+}
+.excelabu-border-menu > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.excelabu-border-menu > div:hover {
+  background: #e8f0fe;
+}
+.excelabu-border-sep {
+  height: 1px;
+  background: var(--excelabu-border);
+  margin: 4px 8px;
+  padding: 0 !important;
+  cursor: default !important;
+}
+.excelabu-border-sep:hover {
+  background: var(--excelabu-border) !important;
+}
+
+/* Border preview icons in menu */
+.excelabu-border-preview {
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  background: #fff;
+  position: relative;
+  box-sizing: border-box;
+}
+/* No border — faint cross to indicate "empty" */
+.excelabu-border-none::before {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px; right: 2px; bottom: 2px;
+  border: 1px dashed #d0d0d0;
+}
+.excelabu-border-none::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; bottom: 0;
+  border-left: 1px solid #e8e8e8;
+  transform: rotate(45deg);
+  opacity: 0.5;
+}
+
+/* All borders — clean grid (田字格) */
+.excelabu-border-all {
+  border: 1.5px solid #555;
+}
+.excelabu-border-all::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  border-top: 1px solid #888;
+  transform: translateY(-0.5px);
+}
+.excelabu-border-all::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  border-left: 1px solid #888;
+  transform: translateX(-0.5px);
+}
+
+/* Outside border — only outer edge */
+.excelabu-border-outside {
+  border: 1.5px solid #555;
+}
+
+/* Thick outside */
+.excelabu-border-thick {
+  border: 2.5px solid #444;
+}
+
+/* Grid (all borders with inner lines) — 田字格 */
+.excelabu-border-grid {
+  border: 1.5px solid #555;
+}
+.excelabu-border-grid::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  border-top: 1px solid #888;
+  transform: translateY(-0.5px);
+}
+.excelabu-border-grid::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  border-left: 1px solid #888;
+  transform: translateX(-0.5px);
+}
+
+/* Bottom border */
+.excelabu-border-bottom {
+  border-bottom: 2px solid #555;
+}
+.excelabu-border-bottom::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1px solid #e0e0e0;
+  border-bottom: none;
+  pointer-events: none;
+}
+
+/* Top border */
+.excelabu-border-top {
+  border-top: 2px solid #555;
+}
+.excelabu-border-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  pointer-events: none;
+}
+
+/* Left border */
+.excelabu-border-left {
+  border-left: 2px solid #555;
+}
+.excelabu-border-left::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1px solid #e0e0e0;
+  border-left: none;
+  pointer-events: none;
+}
+
+/* Right border */
+.excelabu-border-right {
+  border-right: 2px solid #555;
+}
+.excelabu-border-right::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border: 1px solid #e0e0e0;
+  border-right: none;
+  pointer-events: none;
+}
+
+/* ========== Formula Bar ========== */
+.excelabu-formula-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  background: var(--excelabu-formula-bar-bg);
+  border-bottom: 1px solid var(--excelabu-border);
+  flex-shrink: 0;
+  gap: 4px;
+  min-height: 28px;
+}
+
+.excelabu-cell-ref {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  min-width: 60px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.excelabu-formula-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.excelabu-formula-input {
+  flex: 1;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-family: var(--excelabu-font);
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  outline: none;
+  box-sizing: border-box;
+  min-width: 100px;
+}
+
+.excelabu-formula-input:focus {
+  border-color: var(--excelabu-active-cell-border);
+  box-shadow: 0 0 0 1px rgba(33, 115, 70, 0.2);
+}
+
+/* ========== Grid Container ========== */
+.excelabu-grid-wrapper {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+
+.excelabu-grid-scroll {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--excelabu-scrollbar-thumb) var(--excelabu-scrollbar-track);
+}
+
+.excelabu-grid-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.excelabu-grid-scroll::-webkit-scrollbar-track {
+  background: var(--excelabu-scrollbar-track);
+}
+
+.excelabu-grid-scroll::-webkit-scrollbar-thumb {
+  background: var(--excelabu-scrollbar-thumb);
+  border-radius: 5px;
+}
+
+.excelabu-grid-scroll::-webkit-scrollbar-corner {
+  background: var(--excelabu-scrollbar-track);
+}
+
+/* ========== Page Break Overlay ========== */
+.excelabu-page-break-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.excelabu-page-break-line {
+  position: absolute;
+  border: 0;
+}
+
+.excelabu-page-break-v {
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed #217346;
+}
+
+.excelabu-page-break-h {
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed #217346;
+}
+
+/* ========== Grid Table ========== */
+.excelabu-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.excelabu-grid th,
+.excelabu-grid td {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ========== Column Headers ========== */
+.excelabu-col-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--excelabu-header-bg);
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-border);
+  text-align: center;
+  font-size: var(--excelabu-header-font-size);
+  font-weight: 500;
+  color: #555;
+  height: 24px;
+  line-height: 24px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.excelabu-col-header:hover {
+  background: #e8e8e8;
+  cursor: pointer;
+}
+
+.excelabu-col-header.selected {
+  background: var(--excelabu-header-active);
+}
+
+.excelabu-col-header .excelabu-col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.excelabu-col-header .excelabu-col-resize-handle:hover {
+  background: var(--excelabu-active-cell-border);
+}
+
+/* ========== Corner Cell ========== */
+.excelabu-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  background: var(--excelabu-header-bg);
+  border-right: 1px solid var(--excelabu-border);
+  border-bottom: 1px solid var(--excelabu-border);
+  width: 46px;
+  min-width: 46px;
+  height: 24px;
+  cursor: pointer;
+}
+
+/* ========== Row Headers ========== */
+.excelabu-row-header {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: var(--excelabu-header-bg);
+  border-right: 1px solid var(--excelabu-border);
+  border-bottom: 1px solid var(--excelabu-grid-line);
+  text-align: center;
+  font-size: var(--excelabu-header-font-size);
+  font-weight: 500;
+  color: #555;
+  width: 46px;
+  min-width: 46px;
+  height: 24px;
+  line-height: 24px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.excelabu-row-header:hover {
+  background: #e8e8e8;
+  cursor: pointer;
+}
+
+.excelabu-row-header.selected {
+  background: var(--excelabu-header-active);
+}
+
+.excelabu-row-header .excelabu-row-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 1;
+}
+
+.excelabu-row-header .excelabu-row-resize-handle:hover {
+  background: var(--excelabu-active-cell-border);
+}
+
+/* ========== Data Cells ========== */
+.excelabu-cell {
+  position: relative;
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-grid-line);
+  height: 24px;
+  line-height: normal;
+  padding: 0 1px;
+  font-size: var(--excelabu-font-size);
+  cursor: cell;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.excelabu-cell.selected {
+  background-color: rgba(200, 218, 240, 0.45);
+}
+
+.excelabu-cell.active {
+  background-color: #fff;
+  outline: 2px solid var(--excelabu-active-cell-border);
+  outline-offset: -2px;
+}
+
+.excelabu-cell.editing {
+  padding: 0;
+  overflow: visible;
+}
+
+/* Frozen pane cells - JavaScript-driven positioning with z-index stacking */
+.excelabu-cell.excelabu-cell-frozen-row {
+  z-index: 3;
+}
+.excelabu-cell.excelabu-cell-frozen-col {
+  z-index: 4;
+}
+.excelabu-cell.excelabu-cell-frozen-both {
+  z-index: 5;
+}
+
+/* ========== Selection Overlay ========== */
+.excelabu-selection-overlay {
+  display: none;
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid var(--excelabu-active-cell-border);
+  background: rgba(200, 218, 240, 0.15);
+  z-index: 3;
+  box-sizing: border-box;
+}
+
+/* ========== Cell Editor ========== */
+.excelabu-cell-editor {
+  z-index: 50;
+  margin: 0;
+  padding: 0 2px;
+  font-size: var(--excelabu-font-size);
+  font-family: var(--excelabu-font);
+  border: 2px solid var(--excelabu-active-cell-border);
+  outline: none;
+  background: #fff;
+  box-sizing: border-box;
+  min-width: 0;
+  user-select: text;
+  -webkit-user-select: text;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+/* ========== Fill Handle ========== */
+.excelabu-fill-handle {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  background: var(--excelabu-active-cell-border);
+  border: 1px solid #fff;
+  cursor: crosshair;
+  z-index: 10;
+  display: none;
+}
+
+.excelabu-cell.active .excelabu-fill-handle {
+  display: block;
+}
+
+/* ========== Sheet Tabs ========== */
+.excelabu-sheet-tabs {
+  display: flex;
+  align-items: center;
+  background: var(--excelabu-toolbar-bg);
+  border-top: 1px solid var(--excelabu-border);
+  padding: 0 4px;
+  flex-shrink: 0;
+  min-height: 30px;
+  gap: 1px;
+}
+
+.excelabu-sheet-tab {
+  padding: 4px 14px;
+  font-size: 12px;
+  border: 1px solid var(--excelabu-border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: var(--excelabu-sheet-tab-inactive);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  top: -1px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.excelabu-sheet-tab:hover {
+  background: var(--excelabu-sheet-tab-hover);
+}
+
+.excelabu-sheet-tab.active {
+  background: var(--excelabu-sheet-tab-active);
+  border-bottom-color: var(--excelabu-sheet-tab-active);
+  font-weight: 600;
+  padding-bottom: 5px;
+  top: -1px;
+}
+
+.excelabu-add-sheet {
+  padding: 2px 10px;
+  font-size: 16px;
+  border: 1px solid var(--excelabu-border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: var(--excelabu-sheet-tab-inactive);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+  position: relative;
+  top: -1px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.excelabu-add-sheet:hover {
+  background: #d0d0d0;
+}
+
+/* ========== Status Bar ========== */
+.excelabu-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: var(--excelabu-toolbar-bg);
+  border-top: 1px solid var(--excelabu-border);
+  font-size: 11px;
+  color: #666;
+  flex-shrink: 0;
+  min-height: 22px;
+  gap: 12px;
+}
+
+/* ========== Context Menu ========== */
+.excelabu-context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 150px;
+  display: none;
+}
+
+.excelabu-context-menu .excelabu-menu-item {
+  padding: 6px 20px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.excelabu-context-menu .excelabu-menu-item:hover {
+  background: #e8e8e8;
+}
+
+.excelabu-context-menu .excelabu-menu-separator {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+
+/* ========== Copy/Paste Overlay ========== */
+.excelabu-copy-indicator {
+  position: absolute;
+  border: 2px dashed var(--excelabu-active-cell-border);
+  pointer-events: none;
+  z-index: 8;
+  display: none;
+  animation: excelabu-copy-pulse 0.8s ease-in-out;
+}
+
+@keyframes excelabu-copy-pulse {
+  0% { border-color: var(--excelabu-active-cell-border); }
+  50% { border-color: #5fa87a; }
+  100% { border-color: var(--excelabu-active-cell-border); }
+}
+
+/* ========== Search Dialog ========== */
+.excelabu-search-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.excelabu-search-dialog {
+  margin-top: 60px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 12px 16px;
+  min-width: 320px;
+}

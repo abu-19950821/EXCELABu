@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExcelABu - Excel-like Spreadsheet Component</title>
+  <link rel="stylesheet" href="css/fonts.css?v=2">
+  <link rel="stylesheet" href="css/excelabu.css?v=6">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: #e8ecf0;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 16px;
+    }
+
+    .app-container {
+      width: 100%; max-width: 1600px; height: 96vh;
+      background: #fff; border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      overflow: hidden; display: flex; flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .app-header {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #217346, #2b8a4e);
+      color: #fff; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .app-header h1 { font-size: 18px; font-weight: 600; }
+    .app-header .badge { font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; }
+
+    /* ---- Main Body (spreadsheet + sidebar) ---- */
+    .app-main { flex: 1; display: flex; overflow: hidden; }
+
+    /* ---- Spreadsheet Area ---- */
+    .spreadsheet-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* ---- Sidebar ---- */
+    .api-sidebar {
+      width: 320px; flex-shrink: 0;
+      border-left: 1px solid #d9d9d9;
+      background: #fafafa;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .api-sidebar-header {
+      padding: 10px 14px; font-size: 13px; font-weight: 600;
+      color: #217346; background: #eef5f1;
+      border-bottom: 1px solid #d0e0d5;
+      flex-shrink: 0;
+    }
+    .api-sidebar-body {
+      flex: 1; overflow-y: auto; padding: 6px;
+    }
+
+    /* ---- API Category ---- */
+    .api-category {
+      margin-bottom: 6px;
+      border: 1px solid #e0e0e0; border-radius: 6px;
+      background: #fff; overflow: hidden;
+    }
+    .api-cat-title {
+      padding: 8px 12px; font-size: 12px; font-weight: 600;
+      color: #444; background: #f5f5f5;
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .api-cat-title .arrow { font-size: 10px; transition: transform 0.15s; }
+    .api-cat-title .arrow.collapsed { transform: rotate(-90deg); }
+    .api-cat-items { padding: 4px 8px; }
+    .api-cat-items.collapsed { display: none; }
+
+    .api-btn {
+      display: block; width: 100%; padding: 6px 10px; margin: 2px 0;
+      font-size: 11px; text-align: left;
+      border: 1px solid #e8e8e8; border-radius: 4px;
+      background: #fff; color: #333; cursor: pointer;
+      transition: all 0.12s;
+    }
+    .api-btn:hover { background: #e8f5e9; border-color: #a5d6a7; }
+    .api-btn:active { background: #c8e6c9; }
+    .api-btn .method { color: #888; margin-right: 4px; }
+    .api-btn .desc { color: #666; font-weight: normal; font-size: 10px; margin-left: 6px; }
+
+    /* ---- Log Panel ---- */
+    .api-log {
+      height: 130px; flex-shrink: 0;
+      border-top: 1px solid #ddd;
+      background: #1e1e1e; color: #d4d4d4;
+      padding: 8px 10px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    }
+    .api-log .log-ts { color: #6a9955; }
+    .api-log .log-key { color: #569cd6; }
+    .api-log .log-val { color: #ce9178; }
+    .api-log .log-null { color: #808080; }
+    .api-log .log-err { color: #f48771; }
+
+    /* ---- Tips bar ---- */
+    .demo-tips {
+      padding: 6px 14px; background: #fdf6e3;
+      border-bottom: 1px solid #e8d5a0;
+      font-size: 11px; color: #6b5a3a; flex-shrink: 0;
+      display: flex; flex-wrap: wrap; gap: 4px 14px;
+    }
+    .demo-tips strong { color: #8b6914; }
+    .demo-tips span { white-space: nowrap; }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 900px) {
+      .app-main { flex-direction: column; }
+      .api-sidebar { width: 100%; max-height: 300px; }
+      .api-log { height: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="app-header">
+    <h1>ExcelABu</h1>
+    <span class="badge">v1.0</span>
+    <span style="margin-left:auto;font-size:11px;opacity:0.8;">右侧面板 → API 演示</span>
+  </div>
+
+  <div class="app-main">
+    <!-- ========== Left: Spreadsheet ========== -->
+    <div class="spreadsheet-area">
+      <div class="demo-tips">
+        <span><strong>In-cell Edit:</strong> Double-click / F2</span>
+        <span><strong>Formulas:</strong> =SUM(A1:A5) =AVERAGE =MIN =MAX</span>
+        <span><strong>Merge:</strong> Select → click Merge toolbar btn</span>
+        <span><strong>Multi:</strong> Ctrl+Click</span>
+        <span><strong>Keys:</strong> Ctrl+C/V/X | Ctrl+Z/Y | Arrows | Tab | Enter</span>
+      </div>
+      <div class="app-body" id="spreadsheet-container" style="flex:1;overflow:hidden;"></div>
+    </div>
+
+    <!-- ========== Right: API Demo Sidebar ========== -->
+    <div class="api-sidebar">
+      <div class="api-sidebar-header">API 演示面板</div>
+      <div class="api-sidebar-body" id="apiPanel"></div>
+      <div class="api-log" id="apiLog">
+<span class="log-ts">=== API 调用日志 ===</span>
+点击右侧按钮演示各 API →
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/excelabu.js?v=16"></script>
+<script type="module">
+(function () {
+  const container = document.getElementById('spreadsheet-container');
+
+  // ── 1. 初始化 ExcelABu 实例 ──
+  const sheet = new window.ExcelABu(container, {
+    rows: 100, cols: 20, defaultColWidth: 80, defaultRowHeight: 26
+  });
+
+  // ── 2. Sheet1: loadData (二维数组) ──
+  sheet.loadData([
+    ['',        'Q1',       'Q2',       'Q3',       'Q4',       'Total'],
+    ['Revenue', 1200,       1350,       1500,       1680,       '=SUM(B2:E2)'],
+    ['Cost',    800,        880,        920,        960,        '=SUM(B3:E3)'],
+    ['Profit',  '=B2-B3',   '=C2-C3',   '=D2-D3',   '=E2-E3',   '=SUM(B4:E4)'],
+    ['Margin',  '=B4/B2',   '=C4/C2',   '=D4/D3',   '=E4/E3',   '=AVERAGE(B5:E5)'],
+    [],
+    ['Expenses Breakdown:'],
+    ['Rent',    300,        300,        300,        300,        '=SUM(B8:E8)'],
+    ['Salaries',350,        400,        420,        440,        '=SUM(B9:E9)'],
+    ['Utilities',80,        90,         85,         95,         '=SUM(B10:E10)'],
+    ['Marketing',70,        90,         115,        125,        '=SUM(B11:E11)'],
+    ['Total',   '=SUM(B8:B11)','=SUM(C8:C11)','=SUM(D8:D11)','=SUM(E8:E11)','=SUM(F8:F11)']
+  ]);
+
+  // ── 3. Sheet2: bindData (flat 对象数组) ──
+  sheet.bindData({
+    sheetName: 'Employee',
+    startRow: 0, startCol: 0,
+    columns: [
+      { key: 'id',         title: 'ID',         width: 60,  style: { align:'center' } },
+      { key: 'name',       title: 'Name',       width: 100 },
+      { key: 'department', title: 'Department', width: 120 },
+      { key: 'salary',     title: 'Salary',     width: 90,  style: { align:'right', numberFormat:'#,##0' } },
+      { key: 'bonus',      title: 'Bonus',      width: 90,  style: { align:'right', numberFormat:'#,##0' } },
+      { key: 'note',       title: 'Note',       width: 180 }
+    ],
+    data: [
+      { id:1001, name:'Alice',   department:'Engineering', salary:8500, bonus:1200, note:'Team lead\n5 years' },
+      { id:1002, name:'Bob',     department:'Design',      salary:7200, bonus:900,  note:'Junior' },
+      { id:1003, name:'Charlie', department:'Engineering', salary:9000, bonus:1500, note:'Senior dev' },
+      { id:1004, name:'Diana',   department:'Marketing',   salary:6800, bonus:800,  note:'Part-time' },
+      { id:1005, name:'Eve',     department:'Engineering', salary:8800, bonus:1300, note:'Lead architect\n10 years' }
+    ]
+  });
+
+  // ── 4. Sheet3: bindData (gateway 分组) ──
+  sheet.bindData({
+    sheetName: 'TeamGroups',
+    startRow: 0, startCol: 0,
+    columns: [
+      { key:'id',   title:'ID',    width:60,  group:true, style:{ align:'center', bold:true } },
+      { key:'note', title:'Note',  width:180, group:true, style:{ valign:'top' } },
+      { key:'name',       title:'Name',        width:100 },
+      { key:'department', title:'Department',  width:120 },
+      { key:'salary',     title:'Salary',      width:90,  style:{ align:'right', numberFormat:'#,##0' } },
+      { key:'bonus',      title:'Bonus',       width:90,  style:{ align:'right', numberFormat:'#,##0' } }
+    ],
+    data: [{
+      id:1001, note:'Team lead\n5 years',
+      items: [
+        { name:'Alice',   department:'Engineering', salary:8500, bonus:1200 },
+        { name:'Bob',     department:'Design',      salary:7200, bonus:900 },
+        { name:'Charlie', department:'Engineering', salary:9000, bonus:1500 }
+      ]
+    }]
+  });
+
+  // 切回 Sheet1
+  sheet.goToSheet(0);
+  sheet.selectCell('A1');
+  sheet.setColWidth(0, 130);
+
+  // =====================================================================
+  //  Register save callback (演示 onSave API)
+  // =====================================================================
+  sheet.onSave(function (blob, data, inst) {
+    console.log('onSave callback:', blob, data, inst)
+    var names = Object.keys(data).join(', ');
+    var totalRows = 0;
+    Object.keys(data).forEach(function(k) { totalRows += data[k].length; });
+    apiLog('save cb → blob=' + (blob.size / 1024).toFixed(1) + ' KB, ' +
+           'sheets={' + names + '}, total rows=' + totalRows);
+  });
+
+  // Expose
+  window.spreadsheet = sheet;
+
+  // =====================================================================
+  //  API Log helper
+  // =====================================================================
+  const logEl = document.getElementById('apiLog');
+
+  function apiLog(msg) {
+    const time = new Date().toLocaleTimeString();
+    logEl.innerHTML += '\n<span class="log-ts">[' + time + ']</span> ' + msg;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function formatVal(v) {
+    if (v === null || v === undefined) return '<span class="log-null">null</span>';
+    if (typeof v === 'string') return '"' + v.replace(/"/g,'\\"') + '"';
+    return String(v);
+  }
+
+  // =====================================================================
+  //  Build API demo sidebar
+  // =====================================================================
+  const panel = document.getElementById('apiPanel');
+
+  const categories = [
+    // ────────── Data Operations ──────────
+    {
+      title: '&#128202; 数据操作 (Data)',
+      items: [
+        { label: 'getCellValue(r,c)',    desc: '获取单元格值',
+          fn: function(){
+            var ac = sheet.getActiveCell(); if(!ac){ apiLog('无活动单元格'); return; }
+            var r = sheet.activeCell.r, c = sheet.activeCell.c;
+            var v = sheet.getCellValue(r, c);
+            apiLog('getCellValue('+r+','+c+') → '+formatVal(v));
+          } },
+        { label: 'setCellValue(r,c,val)', desc: '设置当前格为"Hello"',
+          fn: function(){ sheet.setCellValue(sheet.activeCell.r, sheet.activeCell.c, 'Hello'); apiLog('setCellValue → 已设置 "Hello"'); } },
+        { label: 'setCellValue(=FORMULA)', desc: '设置公式 =B2+C2',
+          fn: function(){ sheet.setCellValue(0, 6, '=B2+C2'); apiLog('setCellValue(A1,F1) → =B2+C2'); } },
+        { label: 'loadData(array)',       desc: 'Sheet1 载入二维数组',
+          fn: function(){
+            var s = sheet.addNewSheet('LoadDemo');
+            sheet.loadData([['ID','Name','Score'],[1,'Tom',88],[2,'Jerry',95]]);
+            apiLog('loadData → 新 sheet "' + s + '" 已载入 3 行');
+          } },
+        { label: 'bindData(flat)',        desc: '绑定 2 条员工数据',
+          fn: function(){
+            var s = sheet.addNewSheet('BindFlatDemo');
+            sheet.bindData({
+              columns: [
+                { key:'name', title:'Name', width:100 },
+                { key:'role', title:'Role', width:100 }
+              ],
+              data: [{name:'Xiao',role:'Dev'},{name:'Lei',role:'PM'}]
+            });
+            apiLog('bindData → 新 sheet 已绑定 2 条数据');
+          } },
+        { label: 'getData()',             desc: '获取原始数据 (控制台)',
+          fn: function(){ var d = sheet.getData(); apiLog('getData() → ' + Object.keys(d).length + ' cells'); console.log('getData():', d); } },
+      ]
+    },
+    // ────────── Navigation / Selection ──────────
+    {
+      title: '&#128269; 导航选择 (Navigate)',
+      items: [
+        { label: 'getActiveCell()',    desc: '获取当前单元格引用',
+          fn: function(){ apiLog('getActiveCell() → ' + sheet.getActiveCell()); } },
+        { label: 'getSelection()',     desc: '获取选区 (选中多格后用)',
+          fn: function(){ var sel = sheet.getSelection(); apiLog('getSelection() → ' + (sel ? sel.start + ':' + sel.end : '无选区')); } },
+        { label: 'selectCell("B3")',   desc: '跳转到 B3',
+          fn: function(){ sheet.selectCell('B3'); apiLog('selectCell("B3") → 已跳转'); } },
+        { label: 'selectCell("F12")',  desc: '跳转到 F12',
+          fn: function(){ sheet.selectCell('F12'); apiLog('selectCell("F12") → 已跳转'); } },
+      ]
+    },
+    // ────────── Sheet Management ──────────
+    {
+      title: '&#128196; 工作表 (Sheets)',
+      items: [
+        { label: 'getSheetCount()',     desc: '获取工作表数量',
+          fn: function(){ apiLog('getSheetCount() → ' + sheet.getSheetCount()); } },
+        { label: 'getSheetName()',      desc: '获取当前工作表名',
+          fn: function(){ apiLog('getSheetName() → "' + sheet.getSheetName() + '"'); } },
+        { label: 'addNewSheet(...)',    desc: '新建 "API_Demo"',
+          fn: function(){ sheet.addNewSheet('API_Demo'); apiLog('addNewSheet("API_Demo") → 已创建并切换'); } },
+        { label: 'goToSheet(0)',        desc: '切到 Sheet1',
+          fn: function(){ sheet.goToSheet(0); apiLog('goToSheet(0) → 已切到 Sheet1'); } },
+        { label: 'goToSheet(1)',        desc: '切到 Employee',
+          fn: function(){ sheet.goToSheet(1); apiLog('goToSheet(1) → 已切到 Employee'); } },
+        { label: 'renameSheet(...)',    desc: '重命名当前表为 "Demo"',
+          fn: function(){ sheet.renameSheet('Demo'); apiLog('renameSheet("Demo") → 已重命名'); } },
+        { label: 'removeSheet(3)',      desc: '删除第 4 张表',
+          fn: function(){
+            var n = sheet.getSheetCount();
+            if(n<=1){ apiLog('removeSheet → 至少保留一张表'); return; }
+            var idx = n-1; sheet.removeSheet(idx); apiLog('removeSheet('+idx+') → 已删除');
+          } },
+      ]
+    },
+    // ────────── Row / Column ──────────
+    {
+      title: '&#8596;&#65039; 行列操作 (Row/Col)',
+      items: [
+        { label: 'setColWidth(col,px)',  desc: '设 C 列宽 = 150',
+          fn: function(){ sheet.setColWidth(2, 150); apiLog('setColWidth(2,150) → C 列宽 150px'); } },
+        { label: 'setRowHeight(row,px)', desc: '设第 2 行高 = 40',
+          fn: function(){ sheet.setRowHeight(1, 40); apiLog('setRowHeight(1,40) → 第 2 行高 40px'); } },
+        { label: 'insertRow()',          desc: '在当前行上方插入一行',
+          fn: function(){ sheet.insertRow(); apiLog('insertRow() → 已插入'); } },
+        { label: 'deleteRow()',          desc: '删除当前行',
+          fn: function(){ sheet.deleteRow(); apiLog('deleteRow() → 已删除'); } },
+        { label: 'insertCol()',          desc: '在当前列左侧插入一列',
+          fn: function(){ sheet.insertCol(); apiLog('insertCol() → 已插入'); } },
+        { label: 'deleteCol()',          desc: '删除当前列',
+          fn: function(){ sheet.deleteCol(); apiLog('deleteCol() → 已删除'); } },
+      ]
+    },
+    // ────────── Cell Operations ──────────
+    {
+      title: '&#128204; 单元格操作 (Cell)',
+      items: [
+        { label: 'mergeSelection()',     desc: '一键合并 B2:C3',
+          fn: function(){
+            sheet.selectRange('B2:C3');
+            sheet.mergeSelection();
+            apiLog('mergeSelection → B2:C3 已合并');
+          } },
+        { label: 'unmergeSelection()',   desc: '取消合并',
+          fn: function(){ sheet.unmergeSelection(); apiLog('unmergeSelection() → 已执行'); } },
+        { label: 'clearCells()',         desc: '清空选区内容',
+          fn: function(){ sheet.clearCells(); apiLog('clearCells() → 已清空'); } },
+      ]
+    },
+    // ────────── Clipboard ──────────
+    {
+      title: '&#128203; 剪贴板 (Clipboard)',
+      items: [
+        { label: 'copy()',  desc: '复制选区',
+          fn: function(){ sheet.copy(); apiLog('copy() → 已复制'); } },
+        { label: 'cut()',   desc: '剪切选区',
+          fn: function(){ sheet.cut(); apiLog('cut() → 已剪切'); } },
+        { label: 'paste()', desc: '粘贴到当前格',
+          fn: function(){ sheet.paste(); apiLog('paste() → 已粘贴'); } },
+      ]
+    },
+    // ────────── History ──────────
+    {
+      title: '&#9204; 撤销重做 (History)',
+      items: [
+        { label: 'undo()', desc: '撤销上一步',
+          fn: function(){ sheet.undo(); apiLog('undo() → 已撤销'); } },
+        { label: 'redo()', desc: '重做',
+          fn: function(){ sheet.redo(); apiLog('redo() → 已重做'); } },
+      ]
+    },
+    // ────────── Import / Export ──────────
+    {
+      title: '&#128229; 导入导出 (Import/Export)',
+      items: [
+        { label: 'exportFile()',  desc: '导出并下载 XLSX',
+          fn: function(){ sheet.exportFile(); apiLog('exportFile() → 已触发下载 (含样式)'); } },
+        { label: 'importFile()',  desc: '打开导入对话框',
+          fn: function(){ sheet.importFile(); apiLog('importFile() → 已打开文件对话框'); } },
+        { label: 'importFromUrl(url)', desc: '输入 URL 从服务端加载',
+          fn: function(){
+            var url = prompt('请输入 xlsx 文件 URL:', 'http://localhost:8080/demo.xlsx');
+            if (!url) return;
+            apiLog('importFromUrl("' + url + '") → 请求中...');
+            sheet.importFromUrl(url).then(function(){
+              apiLog('importFromUrl → 导入成功!');
+            }).catch(function(e){
+              apiLog('<span class="log-err">importFromUrl 失败: ' + e.message + '</span>');
+            });
+          } },
+        { label: 'importFromUrl (内存Demo)', desc: '内存生成 xlsx 并用 URL 导入',
+          fn: async function(){
+            if (typeof XLSX === 'undefined') { apiLog('<span class="log-err">XLSX 库未加载</span>'); return; }
+            try {
+              // 1. 在内存中创建一个 xlsx 文件
+              var wb = XLSX.utils.book_new();
+              var ws = XLSX.utils.aoa_to_sheet([
+                ['Name', 'Age', 'City'],
+                ['Alice', 30, 'New York'],
+                ['Bob',   25, 'Los Angeles'],
+                ['Carol', 28, 'Chicago']
+              ]);
+              XLSX.utils.book_append_sheet(wb, ws, 'Demo');
+              var raw = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+              var blob = new Blob([raw], { type: 'application/octet-stream' });
+              var blobUrl = URL.createObjectURL(blob);
+              apiLog('生成内存 xlsx → ' + (blob.size/1024).toFixed(1) + ' KB, URL: ' + blobUrl.slice(0, 40) + '...');
+
+              // 2. 通过 importFromUrl 导入（模拟服务端下载）
+              await sheet.importFromUrl(blobUrl);
+              apiLog('importFromUrl(blobUrl) → 导入成功！');
+
+              // 3. 释放 blob URL
+              URL.revokeObjectURL(blobUrl);
+            } catch(e) {
+              apiLog('<span class="log-err">内存 Demo 失败: ' + e.message + '</span>');
+            }
+          } },
+        { label: 'onSave(cb)',    desc: '注册保存回调 (见日志)',
+          fn: function(){
+            sheet.onSave(function(blob, data, inst){
+              var names = Object.keys(data).join(',');
+              var rows = 0; Object.keys(data).forEach(function(k){ rows += data[k].length; });
+              apiLog('【save callback】blob=' + (blob.size/1024).toFixed(1) + 'KB, sheets={' + names + '}, rows=' + rows);
+            });
+            apiLog('onSave → 已注册。点击工具栏 💾 保存按钮触发');
+          } },
+      ]
+    },
+    // ────────── Component ──────────
+    {
+      title: '&#9881;&#65039; 组件控制 (Component)',
+      items: [
+        { label: 'refresh()', desc: '刷新重绘',
+          fn: function(){ sheet.refresh(); apiLog('refresh() → 已刷新'); } },
+        /* destroy 会销毁组件，仅记录说明 */
+        { label: 'destroy()', desc: '⚠ 销毁 (不推荐点)',
+          fn: function(){ apiLog('destroy() → 慎用：会清空容器'); } },
+      ]
+    },
+  ];
+
+  // Render sidebar
+  panel.innerHTML = categories.map(function (cat) {
+    return '<div class="api-category">' +
+      '<div class="api-cat-title" onclick="var i=this.nextElementSibling;var a=this.querySelector(\'.arrow\');i.classList.toggle(\'collapsed\');a.classList.toggle(\'collapsed\')">' +
+        '<span class="arrow">&#9660;</span>' + cat.title +
+      '</div>' +
+      '<div class="api-cat-items">' +
+        cat.items.map(function (item) {
+          return '<button class="api-btn"><span class="method">' + item.label + '</span>' +
+            '<span class="desc">— ' + item.desc + '</span></button>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Wire up click events
+  var allBtns = panel.querySelectorAll('.api-btn');
+  var flatItems = [];
+  categories.forEach(function(c){ flatItems = flatItems.concat(c.items); });
+  allBtns.forEach(function(btn, i){
+    btn.addEventListener('click', function(){
+      try { flatItems[i].fn(); } catch(e) { apiLog('<span class="log-err">Error: ' + e.message + '</span>'); }
+    });
+  });
+
+  // Log ready
+  apiLog('ExcelABu ready — 所有 API 演示就绪');
+  apiLog('当前表: "' + sheet.getSheetName() + '", 共 ' + sheet.getSheetCount() + ' 张表');
+})();
+</script>
+
+</body>
+</html>

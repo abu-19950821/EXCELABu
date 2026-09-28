@@ -1,0 +1,25 @@
+/* ================================================================
+   excelabu Web Fonts
+   Place .woff2 font files in ../fonts/ and uncomment url() entries.
+   ================================================================ */
+
+/*
+ * Font embedding example (replace PATH with actual filename):
+ *
+ * @font-face {
+ *   font-family: 'Calibri';
+ *   src: local('Calibri'),
+ *        url('../fonts/calibri.woff2') format('woff2');
+ *   font-weight: 400;
+ *   font-style: normal;
+ * }
+ *
+ * Recommended free/open fonts to download as .woff2:
+ *   - Noto Sans SC  (Google Fonts) — for Chinese, ~6MB subset
+ *   - Noto Serif SC (Google Fonts) — for Chinese, ~6MB subset
+ *   - Inter / Roboto — Western sans-serif fallback
+ *
+ * To subset Chinese fonts for smaller files, use:
+ *   https://github.com/googlefonts/pyftsubset
+ *   or Google Fonts API with text= parameter
+ */
