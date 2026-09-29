@@ -3,6 +3,11 @@
 > 纯 JavaScript / HTML 实现的 Excel 风格电子表格组件，无需任何第三方框架。零依赖、可嵌入、功能完整。
 
 ---
+## 演示
+![演示预览图](DEMO.png)
+
+在线演示地址：
+https://abu-19950821.github.io/EXCELABu/
 
 ## 目录
 
