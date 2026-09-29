@@ -3,8 +3,7 @@
 > A pure JavaScript / HTML Excel-like spreadsheet component — zero-dependency, embeddable, feature-rich.
 
 ---
-
-![DEMO](image.png)
+![输入图片说明](DEMO.png)
 
 https://abu-19950821.github.io/EXCELABu/
 
