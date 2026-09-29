@@ -1,4 +1,4 @@
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 import { HEADER_BG_COLOR } from '../../config/theme.js?v=2';
 
 export const PublicMixin = {
@@ -104,7 +104,7 @@ export const PublicMixin = {
     }
   },
 
-  /** Select a range by reference (e.g., "B2:C3") / 通过引用选中一个范围 */
+  /** Select a range by reference (e.g., "B2:C3") / 通过引用选中一个范�?*/
   selectRange(ref) {
     var parts = ref.split(':');
     if (parts.length !== 2) return;
@@ -185,7 +185,7 @@ export const PublicMixin = {
     this.container.classList.remove('excelabu');
   },
 
-  // ======================== bindData — Template + Object Array ========================
+  // ======================== bindData �?Template + Object Array ========================
   /**
    * Bind an array of data objects to the sheet using column templates.
    * Each column defines its position span (row × col), styles, and data binding.
@@ -477,7 +477,7 @@ export const PublicMixin = {
   }
 };
 
-// ── Style normalizer: user-facing keys → internal _style keys ──
+// ── Style normalizer: user-facing keys �?internal _style keys ──
 var STYLE_MAP = {
   color:           'color',
   background:      'bgColor',

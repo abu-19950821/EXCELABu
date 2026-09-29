@@ -1,8 +1,11 @@
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 
   // ============================================================
   //  Formula Evaluator
   // ============================================================
+  // Pre-compiled regex for cell-reference matching in expressions
+  const CELL_REF_RE = /(^|[+\-*/(,\s])([A-Za-z]+)(\d+)/g;
+
   export class FormulaEvaluator {
     constructor(sheet) {
       this.sheet = sheet;
@@ -114,9 +117,11 @@ import { Utils } from './01_utils.js?v=2';
 
     _resolveRefs(expr) {
       // Replace cell references with their values.
-      //   - Only match when preceded by start/operator/left-paren (not a digit â€” avoids 5E2).
+      //   - Only match when preceded by start/operator/left-paren (not a digit â€?avoids 5E2).
       //   - Not followed by '(' (avoids function names like SUM).
-      return expr.replace(/(^|[+\-*/(,\s])([A-Za-z]+)(\d+)/g, (match, prefix, col, row, offset, string) => {
+      // Reset lastIndex in case the regex had state from a previous call
+      CELL_REF_RE.lastIndex = 0;
+      return expr.replace(CELL_REF_RE, (match, prefix, col, row, offset, string) => {
         // Check if this is followed by '(' which means it's a function call, not a cell reference
         const afterMatch = string.substring(offset + match.length);
         if (afterMatch.startsWith('(')) {
@@ -147,7 +152,7 @@ import { Utils } from './01_utils.js?v=2';
     }
 
     _getCellValue(r, c) {
-      const key = r + ',' + c;
+      const key = this.sheet._key(r, c);
       const cell = this.sheet._data[key];
       if (!cell) return null;
 

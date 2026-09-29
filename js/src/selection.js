@@ -87,25 +87,51 @@ export const SelectionMixin = {
 
   /** Toggle a full column in/out of selection for Ctrl+click on column header */
   _toggleColumnSelection(c) {
+    this._toggleLinearSelection(true, c);
+  },
+
+  /** Toggle a full row in/out of selection for Ctrl+click on row header */
+  _toggleRowSelection(r) {
+    this._toggleLinearSelection(false, r);
+  },
+
+  /**
+   * Shared helper for Ctrl+click toggle of full-column or full-row selection.
+   * @param {boolean} isColumn - true for column, false for row
+   * @param {number} idx - column or row index
+   */
+  _toggleLinearSelection(isColumn, idx) {
     const sheet = this.activeSheet;
-    const rowCount = sheet.rowCount;
+    const spanSize = isColumn ? sheet.rowCount : sheet.colCount;
 
-    // Helper: is the main selection a "column mode" selection (spans all rows)?
-    var isColumnMode = this.selection &&
-      this.selection.r1 === 0 && this.selection.r2 === rowCount - 1;
+    // Helper: determine if main selection represents a "full linear" mode
+    var isFullMode = this.selection &&
+      (isColumn
+        ? (this.selection.r1 === 0 && this.selection.r2 === spanSize - 1)
+        : (this.selection.c1 === 0 && this.selection.c2 === spanSize - 1));
 
-    // Is column c already fully selected in main or extra?
-    var inMain = isColumnMode &&
-      c >= this.selection.c1 && c <= this.selection.c2;
+    // Is idx already fully selected in main or extra?
+    var inMain = isFullMode &&
+      (isColumn
+        ? (idx >= this.selection.c1 && idx <= this.selection.c2)
+        : (idx >= this.selection.r1 && idx <= this.selection.r2));
+
     var extraIdx = this.extraSelections.findIndex(function(sel) {
-      return sel.r1 === 0 && sel.r2 === rowCount - 1 &&
-        c >= sel.c1 && c <= sel.c2;
+      var fullSpan = isColumn
+        ? (sel.r1 === 0 && sel.r2 === spanSize - 1)
+        : (sel.c1 === 0 && sel.c2 === spanSize - 1);
+      if (!fullSpan) return false;
+      return isColumn
+        ? (idx >= sel.c1 && idx <= sel.c2)
+        : (idx >= sel.r1 && idx <= sel.r2);
     });
 
     if (inMain) {
-      // Remove column c from main selection
-      if (this.selection.c1 === c && this.selection.c2 === c) {
-        // Only this column — promote an extra if available
+      // Remove idx from main selection
+      var mainStart = isColumn ? this.selection.c1 : this.selection.r1;
+      var mainEnd = isColumn ? this.selection.c2 : this.selection.r2;
+      if (mainStart === idx && mainEnd === idx) {
+        // Only this column/row — promote an extra if available
         if (this.extraSelections.length > 0) {
           this.selection = this.extraSelections.shift();
           this.activeCell = { r: this.selection.r1, c: this.selection.c1 };
@@ -114,15 +140,24 @@ export const SelectionMixin = {
           this.activeCell = null;
         }
       } else {
-        // Multiple columns — split c out, put remaining parts in extras
+        // Multiple — split idx out, put remaining parts in extras
         var mr1 = this.selection.r1, mr2 = this.selection.r2;
         var mc1 = this.selection.c1, mc2 = this.selection.c2;
         this.extraSelections = [];
-        if (mc1 < c) {
-          this.extraSelections.push({ r1: mr1, c1: mc1, r2: mr2, c2: c - 1 });
-        }
-        if (mc2 > c) {
-          this.extraSelections.push({ r1: mr1, c1: c + 1, r2: mr2, c2: mc2 });
+        if (isColumn) {
+          if (mc1 < idx) {
+            this.extraSelections.push({ r1: mr1, c1: mc1, r2: mr2, c2: idx - 1 });
+          }
+          if (mc2 > idx) {
+            this.extraSelections.push({ r1: mr1, c1: idx + 1, r2: mr2, c2: mc2 });
+          }
+        } else {
+          if (mr1 < idx) {
+            this.extraSelections.push({ r1: mr1, c1: mc1, r2: idx - 1, c2: mc2 });
+          }
+          if (mr2 > idx) {
+            this.extraSelections.push({ r1: idx + 1, c1: mc1, r2: mr2, c2: mc2 });
+          }
         }
         this.selection = null;
       }
@@ -133,71 +168,24 @@ export const SelectionMixin = {
         this.selection = { r1: 0, c1: 0, r2: 0, c2: 0 };
       }
     } else {
-      // Column c is NOT selected — add it
-      if (!isColumnMode) {
-        // Current selection is not column-based (e.g. single cell).
-        // Replace it with full column c as the main selection.
+      // idx is NOT selected — add it
+      if (!isFullMode) {
+        // Current selection is not full linear — replace it
         this.extraSelections = [];
-        this.selection = { r1: 0, c1: c, r2: rowCount - 1, c2: c };
-        this.activeCell = { r: 0, c: c };
-      } else {
-        // Already in column mode — add c as an extra column
-        this.extraSelections.push({ r1: 0, c1: c, r2: rowCount - 1, c2: c });
-      }
-    }
-    this._updateSelectionDisplay();
-    this._updateFormulaBar();
-    this._updateToolbarState();
-  },
-
-  /** Toggle a full row in/out of selection for Ctrl+click on row header */
-  _toggleRowSelection(r) {
-    const sheet = this.activeSheet;
-    const colCount = sheet.colCount;
-
-    var isRowMode = this.selection &&
-      this.selection.c1 === 0 && this.selection.c2 === colCount - 1;
-
-    var inMain = isRowMode &&
-      r >= this.selection.r1 && r <= this.selection.r2;
-    var extraIdx = this.extraSelections.findIndex(function(sel) {
-      return sel.c1 === 0 && sel.c2 === colCount - 1 &&
-        r >= sel.r1 && r <= sel.r2;
-    });
-
-    if (inMain) {
-      if (this.selection.r1 === r && this.selection.r2 === r) {
-        if (this.extraSelections.length > 0) {
-          this.selection = this.extraSelections.shift();
-          this.activeCell = { r: this.selection.r1, c: this.selection.c1 };
+        if (isColumn) {
+          this.selection = { r1: 0, c1: idx, r2: spanSize - 1, c2: idx };
+          this.activeCell = { r: 0, c: idx };
         } else {
-          this.selection = null;
-          this.activeCell = null;
+          this.selection = { r1: idx, c1: 0, r2: idx, c2: spanSize - 1 };
+          this.activeCell = { r: idx, c: 0 };
         }
       } else {
-        var mr1 = this.selection.r1, mr2 = this.selection.r2;
-        var mc1 = this.selection.c1, mc2 = this.selection.c2;
-        this.extraSelections = [];
-        if (mr1 < r) {
-          this.extraSelections.push({ r1: mr1, c1: mc1, r2: r - 1, c2: mc2 });
+        // Already in full mode — add idx as an extra
+        if (isColumn) {
+          this.extraSelections.push({ r1: 0, c1: idx, r2: spanSize - 1, c2: idx });
+        } else {
+          this.extraSelections.push({ r1: idx, c1: 0, r2: idx, c2: spanSize - 1 });
         }
-        if (mr2 > r) {
-          this.extraSelections.push({ r1: r + 1, c1: mc1, r2: mr2, c2: mc2 });
-        }
-        this.selection = null;
-      }
-    } else if (extraIdx !== -1) {
-      this.extraSelections.splice(extraIdx, 1);
-      if (this.extraSelections.length === 0 && !this.selection) {
-        this.selection = { r1: 0, c1: 0, r2: 0, c2: 0 };
-      }
-    } else {
-      if (!isRowMode) {
-        this.extraSelections = [];
-        this.selection = { r1: r, c1: 0, r2: r, c2: colCount - 1 };
-        this.activeCell = { r: r, c: 0 };
-      } else {
-        this.extraSelections.push({ r1: r, c1: 0, r2: r, c2: colCount - 1 });
       }
     }
     this._updateSelectionDisplay();
@@ -295,50 +283,60 @@ export const SelectionMixin = {
     if (!this.selectionOverlay) return;
 
     if (this.selection && this.selection.r2 >= this.selection.r1 && this.selection.c2 >= this.selection.c1) {
-      const sheet = this.activeSheet;
       const sel = this.selection;
 
-      // Single cell: no overlay needed (active cell outline suffices)
       if (sel.r1 === sel.r2 && sel.c1 === sel.c2) {
         this.selectionOverlay.style.display = 'none';
         return;
       }
 
-      // Compute pixel positions from accumulated row heights / col widths
-      var top = GRID.COL_HEADER_HEIGHT, left = GRID.ROW_HEADER_WIDTH;
-      for (var r = 0; r < sel.r1; r++) top += sheet.getRowHeight(r);
-      for (var c = 0; c < sel.c1; c++) left += sheet.getColWidth(c);
+      var firstCell = this._cellDOM ? this._cellDOM[sel.r1 + ',' + sel.c1] : null;
+      var lastCell  = this._cellDOM ? this._cellDOM[sel.r2 + ',' + sel.c2] : null;
 
-      var w = 0, h = 0;
-      for (var rr = sel.r1; rr <= sel.r2; rr++) h += sheet.getRowHeight(rr);
-      for (var cc = sel.c1; cc <= sel.c2; cc++) w += sheet.getColWidth(cc);
+      // Selection that spans frozen AND non-frozen regions uses manual calculation
+      // because a single rectangle can't correctly cover sticky+vsticky+scrollable mixing.
+      var spansFrozenRow = this._frozenRow && sel.r1 < this._frozenRow && sel.r2 >= this._frozenRow;
+      var spansFrozenCol = this._frozenCol && sel.c1 < this._frozenCol && sel.c2 >= this._frozenCol;
 
-      // Adjust for scroll offset (frozen rows/cols are already accounted
-      // in accumulated coords — they just need the sticky top/left removed)
-      var scrollTop = this.gridScroll.scrollTop;
-      var scrollLeft = this.gridScroll.scrollLeft;
+      if (firstCell && lastCell && this.gridScroll && !spansFrozenRow && !spansFrozenCol) {
+        var sr = this.gridScroll.getBoundingClientRect();
+        var r1 = firstCell.getBoundingClientRect();
+        var r2 = lastCell.getBoundingClientRect();
 
-      // Frozen rows: don't subtract scroll offset for them
-      var frozenRowTop = 0;
-      if (this._frozenRow !== null && this._frozenRow !== undefined) {
-        for (var fr = 0; fr < this._frozenRow; fr++) frozenRowTop += sheet.getRowHeight(fr);
+        // Convert visual (viewport) coordinates to scroll-content coordinates.
+        // For frozen cells: visual pos already excludes scroll; adding scroll
+        // compensates for the overlay being in scroll-content space.
+        // For non-frozen cells: visual pos includes scroll offset; adding scroll
+        // cancels it out, yielding the correct content position.
+        var ox = -sr.left + this.gridScroll.scrollLeft;
+        var oy = -sr.top  + this.gridScroll.scrollTop;
+
+        this.selectionOverlay.style.left   = (r1.left + ox) + 'px';
+        this.selectionOverlay.style.top    = (r1.top  + oy) + 'px';
+        this.selectionOverlay.style.width  = (r2.right  - r1.left) + 'px';
+        this.selectionOverlay.style.height = (r2.bottom - r1.top)  + 'px';
+        this.selectionOverlay.style.display = 'block';
+        return;
       }
 
-      // Frozen cols: don't subtract scroll offset for them
-      var frozenColLeft = GRID.ROW_HEADER_WIDTH;
-      if (this._frozenCol !== null && this._frozenCol !== undefined) {
-        for (var fc = 0; fc < this._frozenCol; fc++) frozenColLeft += sheet.getColWidth(fc);
-      }
+      // Fallback manual calculation for mixed frozen/non-frozen or missing DOM
+      var sheet = this.activeSheet;
+      var ftop = GRID.COL_HEADER_HEIGHT, fleft = GRID.ROW_HEADER_WIDTH;
+      for (var r = 0; r < sel.r1; r++) ftop  += sheet.getRowHeight(r);
+      for (var c = 0; c < sel.c1; c++) fleft += sheet.getColWidth(c);
+      var fw = 0, fh = 0;
+      for (var rr = sel.r1; rr <= sel.r2; rr++) fh += sheet.getRowHeight(rr);
+      for (var cc = sel.c1; cc <= sel.c2; cc++) fw += sheet.getColWidth(cc);
 
-      var adjustedTop = top;
-      var adjustedLeft = left;
-      if (!this._frozenRow || sel.r1 >= this._frozenRow) adjustedTop -= scrollTop;
-      if (!this._frozenCol || sel.c1 >= this._frozenCol) adjustedLeft -= scrollLeft;
+      var scrollTop = this.gridScroll ? this.gridScroll.scrollTop : 0;
+      var scrollLeft = this.gridScroll ? this.gridScroll.scrollLeft : 0;
+      if (!this._frozenRow || sel.r1 >= this._frozenRow) ftop  -= scrollTop;
+      if (!this._frozenCol || sel.c1 >= this._frozenCol) fleft -= scrollLeft;
 
-      this.selectionOverlay.style.left = adjustedLeft + 'px';
-      this.selectionOverlay.style.top = adjustedTop + 'px';
-      this.selectionOverlay.style.width = w + 'px';
-      this.selectionOverlay.style.height = h + 'px';
+      this.selectionOverlay.style.left   = fleft + 'px';
+      this.selectionOverlay.style.top    = ftop  + 'px';
+      this.selectionOverlay.style.width  = fw    + 'px';
+      this.selectionOverlay.style.height = fh    + 'px';
       this.selectionOverlay.style.display = 'block';
     } else {
       this.selectionOverlay.style.display = 'none';

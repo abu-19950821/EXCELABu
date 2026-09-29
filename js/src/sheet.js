@@ -1,6 +1,6 @@
-import { Utils } from './01_utils.js?v=2';
-import { FormulaEvaluator } from './02_formula.js?v=3';
-import { GRID } from '../../config/theme.js?v=2';
+import { Utils } from './utils.js?v=3';
+import { FormulaEvaluator } from './formula.js?v=5';
+import { GRID } from '../../config/theme.js?v=3';
 
   // ============================================================
   //  Sheet - Data Model for a single sheet
@@ -14,11 +14,61 @@ import { GRID } from '../../config/theme.js?v=2';
       this.colWidths = {};    // key: col index -> width in px
       this.rowHeights = {};   // key: row index -> height in px
       this.mergedCells = {};  // key: "r,c" -> { r1, c1, r2, c2 } (only top-left stores the range)
+      this._mergeIndex = {}; // row-index: { r: [merge, ...] } for O(1) getMergeRange
       this.formulaEval = new FormulaEvaluator(this);
+      // Track last non-empty row/col for O(1) extent queries (avoid full _data scan)
+      this._lastDataRow = -1;
+      this._lastDataCol = -1;
+    }
+
+    /** Recalculate _lastDataRow/_lastDataCol by scanning _data keys */
+    _recalcLastDataExtent() {
+      this._lastDataRow = -1;
+      this._lastDataCol = -1;
+      for (var key in this._data) {
+        var pc = this._parseKey(key);
+        if (pc.r > this._lastDataRow) this._lastDataRow = pc.r;
+        if (pc.c > this._lastDataCol) this._lastDataCol = pc.c;
+      }
+    }
+
+    /** Get the extent of non-empty cells â€?uses cached values (O(1)) */
+    getLastDataExtent() {
+      if (this._lastDataRow < 0 && this._lastDataCol < 0) {
+        // Verify: there might genuinely be data at row 0, col 0
+        if (this._data[this._key(0, 0)] !== undefined) {
+          this._lastDataRow = 0;
+          this._lastDataCol = 0;
+        }
+      }
+      return { r: this._lastDataRow, c: this._lastDataCol };
+    }
+
+    /** Rebuild the merge index for O(1) range lookups */
+    _rebuildMergeIndex() {
+      this._mergeIndex = {};
+      for (const key in this.mergedCells) {
+        const m = this.mergedCells[key];
+        for (let r = m.r1; r <= m.r2; r++) {
+          if (!this._mergeIndex[r]) this._mergeIndex[r] = [];
+          this._mergeIndex[r].push(m);
+        }
+      }
+    }
+
+    /** Build canonical cell key: "r,c" */
+    _key(r, c) {
+      return r + ',' + c;
+    }
+
+    /** Parse a "r,c" key back into { r, c } */
+    _parseKey(key) {
+      var parts = key.split(',');
+      return { r: parseInt(parts[0], 10), c: parseInt(parts[1], 10) };
     }
 
     getCell(r, c) {
-      const key = r + ',' + c;
+      const key = this._key(r, c);
       return this._data[key] || null;
     }
 
@@ -43,11 +93,9 @@ import { GRID } from '../../config/theme.js?v=2';
     }
 
     /** Format any JS value for display, respecting cell _style.numFmt */
-    _formatValue(val) {
+    _formatValue(val, cell) {
       if (val === null || val === undefined) return '';
 
-      // Try to get numFmt from cell style (passed as second arg or via arguments[1])
-      var cell = arguments.length > 1 ? arguments[1] : null;
       var numFmt = (cell && cell._style && cell._style.numFmt) || '';
 
       // Number format: percentage
@@ -72,8 +120,14 @@ import { GRID } from '../../config/theme.js?v=2';
       return String(val);
     }
 
+    /** Update cached last-data-extent after a cell write at (r, c) */
+    _updateLastDataExtent(r, c) {
+      if (r > this._lastDataRow) this._lastDataRow = r;
+      if (c > this._lastDataCol) this._lastDataCol = c;
+    }
+
     setCell(r, c, value) {
-      const key = r + ',' + c;
+      const key = this._key(r, c);
       var existingCell = this._data[key];
       var _prevStyle = existingCell ? Utils.deepClone(existingCell._style) : {};
 
@@ -85,8 +139,13 @@ import { GRID } from '../../config/theme.js?v=2';
         } else {
           delete this._data[key];
         }
+        // Deletion may shrink extent â€?recalc
+        this._recalcLastDataExtent();
         return;
       }
+
+      // Track extent
+      this._updateLastDataExtent(r, c);
 
       // Handle Date objects
       if (value instanceof Date) {
@@ -153,26 +212,37 @@ import { GRID } from '../../config/theme.js?v=2';
     }
 
     setCellFormula(r, c, formula) {
-      const key = r + ',' + c;
+      const key = this._key(r, c);
       if (!formula || formula === '') {
         delete this._data[key];
+        this._recalcLastDataExtent();
         return;
       }
-      var _prevStyle = this._data[key] ? this._data[key]._style : null;
-      this._data[key] = {
-        value: null,
-        formula: formula,
-        display: null,
-        _style: _prevStyle
-      };
+      this._updateLastDataExtent(r, c);
+      if (this._data[key] && this._data[key]._style) {
+        var _prevStyle = this._data[key]._style;
+        this._data[key] = {
+          value: null,
+          formula: formula,
+          display: null,
+          _style: _prevStyle
+        };
+      } else {
+        this._data[key] = {
+          value: null,
+          formula: formula,
+          display: null,
+          _style: null
+        };
+      }
     }
 
     hasCell(r, c) {
-      return (r + ',' + c) in this._data;
+      return this._key(r, c) in this._data;
     }
 
     clearCell(r, c) {
-      var key = r + ',' + c;
+      var key = this._key(r, c);
       var cell = this._data[key];
       if (!cell) return;
       // Keep _style, only clear value/formula/display (Clear Contents behavior)
@@ -182,6 +252,8 @@ import { GRID } from '../../config/theme.js?v=2';
       } else {
         delete this._data[key];
       }
+      // Deletion may shrink extent
+      this._recalcLastDataExtent();
     }
 
     clearRange(r1, c1, r2, c2) {
@@ -198,6 +270,7 @@ import { GRID } from '../../config/theme.js?v=2';
 
     setData(data) {
       this._data = Utils.deepClone(data);
+      this._recalcLastDataExtent();
     }
 
     getColWidth(c) {
@@ -232,13 +305,14 @@ import { GRID } from '../../config/theme.js?v=2';
       for (let r = r1; r <= r2; r++) {
         for (let c = c1; c <= c2; c++) {
           if (r === r1 && c === c1) continue; // Skip top-left cell
-          const key = r + ',' + c;
+          const key = this._key(r, c);
           delete this._data[key];
         }
       }
 
       // Store merge info on top-left cell only
-      this.mergedCells[r1 + ',' + c1] = { r1, c1, r2, c2 };
+      this.mergedCells[this._key(r1, c1)] = { r1, c1, r2, c2 };
+      this._rebuildMergeIndex();
 
       return true;
     }
@@ -250,6 +324,7 @@ import { GRID } from '../../config/theme.js?v=2';
         const m = this.mergedCells[key];
         if (r >= m.r1 && r <= m.r2 && c >= m.c1 && c <= m.c2) {
           delete this.mergedCells[key];
+          this._rebuildMergeIndex();
           return true;
         }
       }
@@ -270,8 +345,10 @@ import { GRID } from '../../config/theme.js?v=2';
 
     /** Get the merge range that contains this cell, or null */
     getMergeRange(r, c) {
-      for (const key in this.mergedCells) {
-        const m = this.mergedCells[key];
+      var rowMerges = this._mergeIndex[r];
+      if (!rowMerges) return null;
+      for (var i = 0; i < rowMerges.length; i++) {
+        var m = rowMerges[i];
         if (r >= m.r1 && r <= m.r2 && c >= m.c1 && c <= m.c2) {
           return m;
         }
@@ -281,11 +358,11 @@ import { GRID } from '../../config/theme.js?v=2';
 
     /** Check if a cell is the top-left of a merged region (the master cell) */
     isMergeMaster(r, c) {
-      return (r + ',' + c) in this.mergedCells;
+      return this._key(r, c) in this.mergedCells;
     }
 
     /** Get the merge info for the top-left cell */
     getMergeInfo(r, c) {
-      return this.mergedCells[r + ',' + c] || null;
+      return this.mergedCells[this._key(r, c)] || null;
     }
   }

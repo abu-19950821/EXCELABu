@@ -1,4 +1,4 @@
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 
 import { UI } from '../../config/constants.js?v=1';
 
@@ -71,6 +71,32 @@ export const EditingMixin = {
   },
 
   // ======================== Cell Editing ========================
+
+  /** Create the inline <textarea> editor inside the cell element */
+  _createInlineEditor(cellEl, editValue) {
+    // Remove any existing editor
+    this._removeCellEditor();
+
+    // Add editing class to cell (overflow visible, padding reset)
+    cellEl.classList.add('editing');
+
+    const editor = document.createElement('textarea');
+    editor.className = 'excelabu-cell-editor';
+    editor.name = 'excelabu-cell-editor';
+    editor.value = editValue;
+    editor.rows = 1;
+    editor.style.position = 'absolute';
+    editor.style.left = '0';
+    editor.style.top = '0';
+    editor.style.width = '100%';
+    editor.style.height = '100%';
+    editor.style.minHeight = '100%';
+
+    cellEl.appendChild(editor);
+    this.cellEditor = editor;
+    return editor;
+  },
+
   _startEditing(r, c, clearFirst, seedChar) {
     // Cell is already selected from click/keyboard - just update ref without scrolling
     this.activeCell = { r, c };
@@ -108,26 +134,7 @@ export const EditingMixin = {
       return;
     }
 
-    // Remove any existing editor
-    this._removeCellEditor();
-
-    // Add editing class to cell (overflow visible, padding reset)
-    cellEl.classList.add('editing');
-
-    // Create editor as child of the cell for exact size matching
-    const editor = document.createElement('textarea');
-    editor.className = 'excelabu-cell-editor';
-    editor.value = editValue;
-    editor.rows = 1;
-    editor.style.position = 'absolute';
-    editor.style.left = '0';
-    editor.style.top = '0';
-    editor.style.width = '100%';
-    editor.style.height = '100%';
-    editor.style.minHeight = '100%';
-
-    cellEl.appendChild(editor);
-    this.cellEditor = editor;
+    const editor = this._createInlineEditor(cellEl, editValue);
 
     // Focus and position cursor
     if (seedChar) {

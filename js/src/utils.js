@@ -57,14 +57,17 @@
       return !(c2 < tc || c1 > bc || r2 < tr || r1 > br);
     },
 
-    /** Deep clone an object */
-    deepClone(obj) {
+    /** Deep clone an object (with circular-reference protection) */
+    deepClone(obj, _seen) {
       if (obj === null || typeof obj !== 'object') return obj;
-      if (Array.isArray(obj)) return obj.map(Utils.deepClone);
+      _seen = _seen || new WeakSet();
+      if (_seen.has(obj)) return obj; // circular reference → safe return
+      _seen.add(obj);
+      if (Array.isArray(obj)) return obj.map(function(item) { return Utils.deepClone(item, _seen); });
       const clone = {};
       for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
-          clone[key] = Utils.deepClone(obj[key]);
+          clone[key] = Utils.deepClone(obj[key], _seen);
         }
       }
       return clone;

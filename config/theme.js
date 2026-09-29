@@ -31,9 +31,9 @@ export const GRID = {
   VISIBLE_ROWS_FALLBACK: 20,
   VISIBLE_COLS_FALLBACK: 5,
   ZINDEX: {
-    CORNER: 20,
-    COL_HEADER: 10,
-    ROW_HEADER: 5
+    CORNER: 25,
+    COL_HEADER: 22,
+    ROW_HEADER: 21
   }
 };
 

@@ -1,4 +1,4 @@
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 
 import { HISTORY } from '../../config/constants.js?v=1';
 
@@ -37,6 +37,7 @@ export const HistoryMixin = {
     this.activeSheet.colWidths = snapshot.colWidths;
     this.activeSheet.rowHeights = snapshot.rowHeights;
     this.activeSheet.mergedCells = snapshot.mergedCells;
+    this.activeSheet._rebuildMergeIndex();
     this.activeSheet.rowCount = snapshot.rowCount;
     this.activeSheet.colCount = snapshot.colCount;
   },

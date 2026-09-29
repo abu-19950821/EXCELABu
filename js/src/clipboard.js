@@ -1,4 +1,4 @@
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 
 import { UI } from '../../config/constants.js?v=1';
 
@@ -161,7 +161,7 @@ export const ClipboardMixin = {
           }
           // Copy source cell style
           if (srcCell._style) {
-            var key = targetR + ',' + targetC;
+            var key = sheet._key(targetR, targetC);
             if (sheet._data[key]) {
               sheet._data[key]._style = Utils.deepClone(srcCell._style);
             }

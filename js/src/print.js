@@ -1,6 +1,6 @@
 import { PRINT, DEFAULT_OPTIONS } from '../../config/index.js?v=1';
 import { GRID } from '../../config/theme.js?v=2';
-import { Utils } from './01_utils.js?v=2';
+import { Utils } from './utils.js?v=3';
 
 export const PrintMixin = {
 
@@ -82,6 +82,51 @@ export const PrintMixin = {
     }
   },
 
+  /**
+   * Shared helper: split columns/rows into page groups.
+   * Returns { colPages, rowPages }
+   *   colPages: [{ start, end, x }]  (x = total width within the page)
+   *   rowPages: [{ start, end, y }]  (y = total height within the page)
+   * 'end' is exclusive (like splice end). x/y are cumulative sizes.
+   */
+  _calculatePageGroups(cols, rows, pageWidth, pageHeight) {
+    var sheet = this.activeSheet;
+
+    // ── Columns ──
+    var colPages = [];
+    var pageStart = 0;
+    var accW = 0;
+    for (var c = 0; c < cols; c++) {
+      var w = sheet.getColWidth(c);
+      if (accW + w > pageWidth && c > pageStart) {
+        colPages.push({ start: pageStart, end: c - 1, x: accW });
+        pageStart = c;
+        accW = w;
+      } else {
+        accW += w;
+      }
+    }
+    colPages.push({ start: pageStart, end: cols - 1, x: accW });
+
+    // ── Rows ──
+    var rowPages = [];
+    var rpStart = 0;
+    var accH = 0;
+    for (var r = 0; r < rows; r++) {
+      var h = sheet.getRowHeight(r);
+      if (accH + h > pageHeight && r > rpStart) {
+        rowPages.push({ start: rpStart, end: r - 1, y: accH });
+        rpStart = r;
+        accH = h;
+      } else {
+        accH += h;
+      }
+    }
+    rowPages.push({ start: rpStart, end: rows - 1, y: accH });
+
+    return { colPages: colPages, rowPages: rowPages };
+  },
+
   _renderPageBreakLines() {
     this._clearPageBreakLines();
 
@@ -97,46 +142,18 @@ export const PrintMixin = {
     var totalH = GRID.COL_HEADER_HEIGHT;
     for (var r = 0; r < rows; r++) totalH += sheet.getRowHeight(r);
 
+    var pages = this._calculatePageGroups(cols, rows, pw, ph);
+    var colPages = pages.colPages;
+    var rowPages = pages.rowPages;
+
     var container = document.createElement('div');
     container.className = 'excelabu-page-break-overlay';
     container.style.width = totalW + 'px';
     container.style.height = totalH + 'px';
 
-    // ── Column page groups / 列分页组 ──
-    var colPages = [];
-    var pageStart = 0;
-    var accW = 0;
-    for (var c = 0; c < cols; c++) {
-      var w = sheet.getColWidth(c);
-      if (accW + w > pw && c > pageStart) {
-        colPages.push({ start: pageStart, end: c - 1, x: accW });
-        pageStart = c;
-        accW = w;
-      } else {
-        accW += w;
-      }
-    }
-    colPages.push({ start: pageStart, end: cols - 1, x: accW });
-
-    // ── Row page groups / 行分页组 ──
-    var rowPages = [];
-    var rpStart = 0;
-    var accH = 0;
-    for (var r = 0; r < rows; r++) {
-      var h = sheet.getRowHeight(r);
-      if (accH + h > ph && r > rpStart) {
-        rowPages.push({ start: rpStart, end: r - 1, y: accH });
-        rpStart = r;
-        accH = h;
-      } else {
-        accH += h;
-      }
-    }
-    rowPages.push({ start: rpStart, end: rows - 1, y: accH });
-
     var LINE_COLOR = PRINT.PAGE_BREAK_COLOR;
 
-    // ── Vertical break lines / 垂直分页线 ──
+    // ── Vertical break lines ──
     var xPos = GRID.ROW_HEADER_WIDTH;
     for (var cp = 0; cp < colPages.length - 1; cp++) {
       xPos += colPages[cp].x;
@@ -146,7 +163,7 @@ export const PrintMixin = {
       container.appendChild(vLine);
     }
 
-    // ── Horizontal break lines / 水平分页线 ──
+    // ── Horizontal break lines ──
     var yPos = GRID.COL_HEADER_HEIGHT;
     for (var rp = 0; rp < rowPages.length - 1; rp++) {
       yPos += rowPages[rp].y;
@@ -173,7 +190,7 @@ export const PrintMixin = {
 
   _doPrint(previewOnly) {
     const sheet = this.activeSheet;
-    const last = this._getLastDataRowCol(sheet);
+    const last = this.activeSheet.getLastDataExtent();
 
     if (last.r < 0) {
       alert(this._t('noData'));
@@ -187,37 +204,18 @@ export const PrintMixin = {
     var pageWidth = Math.floor(this._getPrintableWidth() - PRINT.PAGE_WIDTH_PAD);
     var pageHeight = Math.floor(this._getPrintableHeight());
 
-    // ── Split columns into pages / 列分页 ──
-    const colPages = [];
-    let pageStart = 0;
-    let accW = 0;
-    for (let c = 0; c < cols; c++) {
-      const w = sheet.getColWidth(c);
-      if (accW + w > pageWidth && c > pageStart) {
-        colPages.push({ start: pageStart, end: c });
-        pageStart = c;
-        accW = w;
-      } else {
-        accW += w;
-      }
-    }
-    colPages.push({ start: pageStart, end: cols });
+    // Use shared page-group calculator
+    var pageData = this._calculatePageGroups(cols, rows, pageWidth, pageHeight);
 
-    // ── Split rows into pages / 行分页 ──
-    const rowPages = [];
-    let rpStart = 0;
-    let accH = 0;
-    for (let r = 0; r < rows; r++) {
-      const h = sheet.getRowHeight(r);
-      if (accH + h > pageHeight && r > rpStart) {
-        rowPages.push({ start: rpStart, end: r });
-        rpStart = r;
-        accH = h;
-      } else {
-        accH += h;
-      }
+    // Convert to _doPrint format (end exclusive)
+    const colPages = [];
+    for (var pi = 0; pi < pageData.colPages.length; pi++) {
+      colPages.push({ start: pageData.colPages[pi].start, end: pageData.colPages[pi].end + 1 });
     }
-    rowPages.push({ start: rpStart, end: rows });
+    const rowPages = [];
+    for (var pi = 0; pi < pageData.rowPages.length; pi++) {
+      rowPages.push({ start: pageData.rowPages[pi].start, end: pageData.rowPages[pi].end + 1 });
+    }
 
     // ── Build HTML / 构建打印 HTML ──
     let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Print</title>';

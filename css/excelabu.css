@@ -168,6 +168,10 @@
   background: #c8daf0;
   border-color: #6b9cd2;
 }
+.excelabu-toolbar .excelabu-freeze-group > button.active {
+  background: #c8daf0;
+  border-color: #6b9cd2;
+}
 
 .excelabu-toolbar select {
   padding: 2px 4px;
@@ -401,6 +405,67 @@ svg.excelabu-color-indicator {
   pointer-events: none;
 }
 
+/* ========== Sort Dropdown ========== */
+.excelabu-sort-group {
+  position: relative;
+  display: inline-flex;
+}
+.excelabu-freeze-group {
+  position: relative;
+  display: inline-flex;
+}
+.excelabu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid var(--excelabu-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  margin-top: 2px;
+}
+.excelabu-dropdown > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.excelabu-dropdown > div:hover {
+  background: #e8f0fe;
+}
+.excelabu-dropdown > div.disabled {
+  color: #999;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.excelabu-dropdown-sep {
+  height: 1px;
+  background: var(--excelabu-border);
+  margin: 4px 8px;
+  padding: 0 !important;
+  cursor: default !important;
+}
+.excelabu-dropdown-sep:hover {
+  background: var(--excelabu-border) !important;
+}
+
+/* Sorted column header indicator */
+.excelabu-col-header-sorted {
+  background: #e8f0fe !important;
+  color: #1a73e8;
+}
+.excelabu-sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #1a73e8;
+}
+
 /* ========== Formula Bar ========== */
 .excelabu-formula-bar {
   display: flex;
@@ -559,13 +624,19 @@ svg.excelabu-color-indicator {
   -webkit-user-select: none;
 }
 
+/* Thick downward arrow cursor */
 .excelabu-col-header:hover {
   background: #e8e8e8;
-  cursor: pointer;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='26' viewBox='0 0 14 26'%3E%3Cpath d='M3,4 h8 v6 h2 L7,24 L1,10 h2 z' fill='%23333'/%3E%3C/svg%3E") 7 24, default;
 }
 
 .excelabu-col-header.selected {
   background: var(--excelabu-header-active);
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='26' viewBox='0 0 14 26'%3E%3Cpath d='M3,4 h8 v6 h2 L7,24 L1,10 h2 z' fill='%23333'/%3E%3C/svg%3E") 7 24, default;
+}
+
+.excelabu-col-header.selected:hover {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='26' viewBox='0 0 14 26'%3E%3Cpath d='M3,4 h8 v6 h2 L7,24 L1,10 h2 z' fill='%23333'/%3E%3C/svg%3E") 7 24, default;
 }
 
 .excelabu-col-header .excelabu-col-resize-handle {
@@ -599,9 +670,6 @@ svg.excelabu-color-indicator {
 
 /* ========== Row Headers ========== */
 .excelabu-row-header {
-  position: sticky;
-  left: 0;
-  z-index: 5;
   background: var(--excelabu-header-bg);
   border-right: 1px solid var(--excelabu-border);
   border-bottom: 1px solid var(--excelabu-grid-line);
@@ -618,13 +686,19 @@ svg.excelabu-color-indicator {
   -webkit-user-select: none;
 }
 
+/* Thick rightward arrow cursor */
 .excelabu-row-header:hover {
   background: #e8e8e8;
-  cursor: pointer;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='14' viewBox='0 0 26 14'%3E%3Cpath d='M4,3 v8 h6 v3 L24,7 L10,0 v3 h-6 z' fill='%23333'/%3E%3C/svg%3E") 24 7, default;
 }
 
 .excelabu-row-header.selected {
   background: var(--excelabu-header-active);
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='14' viewBox='0 0 26 14'%3E%3Cpath d='M4,3 v8 h6 v3 L24,7 L10,0 v3 h-6 z' fill='%23333'/%3E%3C/svg%3E") 24 7, default;
+}
+
+.excelabu-row-header.selected:hover {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='14' viewBox='0 0 26 14'%3E%3Cpath d='M4,3 v8 h6 v3 L24,7 L10,0 v3 h-6 z' fill='%23333'/%3E%3C/svg%3E") 24 7, default;
 }
 
 .excelabu-row-header .excelabu-row-resize-handle {
@@ -671,17 +745,57 @@ svg.excelabu-color-indicator {
 .excelabu-cell.editing {
   padding: 0;
   overflow: visible;
+  cursor: text;
 }
 
-/* Frozen pane cells - JavaScript-driven positioning with z-index stacking */
+/* Frozen pane cells — sticky + solid bg to prevent scroll-through */
 .excelabu-cell.excelabu-cell-frozen-row {
+  position: sticky;
   z-index: 3;
+  background-color: #fff;
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-grid-line);
 }
 .excelabu-cell.excelabu-cell-frozen-col {
+  position: sticky;
   z-index: 4;
+  background-color: #fff;
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-grid-line);
 }
 .excelabu-cell.excelabu-cell-frozen-both {
+  position: sticky;
   z-index: 5;
+  background-color: #fff;
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-grid-line);
+}
+
+/* ========== Frozen Overlay (clone layer) ========== */
+.excelabu-frozen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.excelabu-frozen-overlay td,
+.excelabu-frozen-overlay th {
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.excelabu-frozen-overlay .excelabu-cell {
+  border-right: 1px solid var(--excelabu-grid-line);
+  border-bottom: 1px solid var(--excelabu-grid-line);
+}
+
+.excelabu-frozen-overlay .excelabu-row-header {
+  border-right: 1px solid var(--excelabu-border);
+  border-bottom: 1px solid var(--excelabu-grid-line);
 }
 
 /* ========== Selection Overlay ========== */
@@ -692,7 +806,6 @@ svg.excelabu-color-indicator {
   border: 2px solid var(--excelabu-active-cell-border);
   background: rgba(200, 218, 240, 0.15);
   z-index: 3;
-  box-sizing: border-box;
 }
 
 /* ========== Cell Editor ========== */
@@ -719,17 +832,24 @@ svg.excelabu-color-indicator {
   position: absolute;
   right: 1px;
   bottom: 1px;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background: var(--excelabu-active-cell-border);
   border: 1px solid #fff;
   cursor: crosshair;
-  z-index: 10;
+  z-index: 4;
   display: none;
+  pointer-events: auto;
 }
 
 .excelabu-cell.active .excelabu-fill-handle {
   display: block;
+}
+
+.excelabu-cell-frozen-row .excelabu-fill-handle,
+.excelabu-cell-frozen-col .excelabu-fill-handle,
+.excelabu-cell-frozen-both .excelabu-fill-handle {
+  z-index: 25;
 }
 
 /* ========== Sheet Tabs ========== */
@@ -742,6 +862,8 @@ svg.excelabu-color-indicator {
   flex-shrink: 0;
   min-height: 30px;
   gap: 1px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .excelabu-sheet-tab {
@@ -757,6 +879,7 @@ svg.excelabu-color-indicator {
   top: -1px;
   user-select: none;
   -webkit-user-select: none;
+  flex-shrink: 0;
 }
 
 .excelabu-sheet-tab:hover {
@@ -777,6 +900,7 @@ svg.excelabu-color-indicator {
   border: 1px solid var(--excelabu-border);
   border-top: none;
   border-radius: 0 0 4px 4px;
+  flex-shrink: 0;
   background: var(--excelabu-sheet-tab-inactive);
   cursor: pointer;
   font-weight: 700;
@@ -869,4 +993,12 @@ svg.excelabu-color-indicator {
   box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   padding: 12px 16px;
   min-width: 320px;
+}
+
+/* ========== Search / Find-Replace Highlight ========== */
+.excelabu-cell.search-highlight {
+  background-color: #fef9c3 !important;
+}
+.excelabu-cell.search-current {
+  background-color: #fde047 !important;
 }
