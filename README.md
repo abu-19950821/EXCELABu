@@ -9,6 +9,8 @@
 在线演示地址：
 https://abu-19950821.github.io/EXCELABu/
 
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/abu-19950821/excelabu?utm_source=readme&utm_medium=badge)
+
 ## 目录
 
 - [简介](#简介)
