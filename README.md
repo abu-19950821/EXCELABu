@@ -5,11 +5,11 @@
 ---
 ## 演示
 ![演示预览图](DEMO.png)
+![输入图片说明](diagram.png)
 
 在线演示地址：
 https://abu-19950821.github.io/EXCELABu/
 
-[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/abu-19950821/excelabu?utm_source=readme&utm_medium=badge)
 
 ## 目录
 
