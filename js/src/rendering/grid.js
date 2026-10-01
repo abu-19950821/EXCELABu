@@ -117,6 +117,10 @@ export const RenderingGridMixin = {
       html += '</tr>';
     }
     html += '</tbody>';
+    // iPad/tablet Safari: force the fixed-layout table to its full content width so
+    // columns are not squeezed into the container and a horizontal scrollbar appears.
+    this.gridTable.style.width = accLeft + 'px';
+    this.gridTable.style.minWidth = accLeft + 'px';
     this.gridTable.innerHTML = html;
     this._cellDOM = {};
     var cells = this.gridTable.querySelectorAll('.excelabu-cell');

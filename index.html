@@ -177,7 +177,7 @@
     ['Utilities',80,        90,         85,         95,         '=SUM(B10:E10)'],
     ['Marketing',70,        90,         115,        125,        '=SUM(B11:E11)'],
     ['Total',   '=SUM(B8:B11)','=SUM(C8:C11)','=SUM(D8:D11)','=SUM(E8:E11)','=SUM(F8:F11)']
-  ]);
+  ], 'Sheet1');
 
   // ── 3. Sheet2: bindData (flat 对象数组) ──
   sheet.bindData({
@@ -200,13 +200,27 @@
     ]
   });
 
-  // ── 4. Sheet3: bindData (gateway 分组) ──
+  // ── 4. fillData demo: 表头已渲染，数据到了再往 Employee 数据区续写 ──
+  // 传对象数组，字段按 bindData 里定义的 columns 自动映射到列
+  // mode:'replace' 整段重填；追加用 mode:'append'（自动续到末尾）
+  sheet.fillData([
+    { id:1006, name:'Frank', department:'Operations', salary:7500, bonus:0,   note:'New hire' },
+    { id:1007, name:'Grace', department:'HR',         salary:7000, bonus:600, note:'' }
+  ], { sheetName: 'Employee', startRow: 6, mode: 'replace' });
+
+  // 追加两条：比 bindData 表头下一行更靠后，自动从第一条空行继续
+  sheet.fillData([
+    { id:1008, name:'Henry', department:'Finance',   salary:6900, bonus:450, note:'Part-time' },
+    { id:1009, name:'Ivy',   department:'Marketing', salary:7300, bonus:800, note:'Campaign lead' }
+  ], { sheetName: 'Employee', mode: 'append' });
+
+  // ── 5. Sheet3: bindData (gateway 分组) ──
   sheet.bindData({
     sheetName: 'TeamGroups',
     startRow: 0, startCol: 0,
     columns: [
       { key:'id',   title:'ID',    width:60,  group:true, style:{ align:'center', bold:true } },
-      { key:'note', title:'Note',  width:180, group:true, style:{ valign:'top' } },
+      { key:'note', title:'Note',  width:180, group:true, style:{ valign:'top', color:'red' } },
       { key:'name',       title:'Name',        width:100 },
       { key:'department', title:'Department',  width:120 },
       { key:'salary',     title:'Salary',      width:90,  style:{ align:'right', numberFormat:'#,##0' } },
@@ -221,6 +235,20 @@
       ]
     }]
   });
+
+  // ── 6. 占位符填充演示：先建一张带 {{字段}} 的模板页，再用数据替换 ──
+  // 导入真实 xlsx 模板后同样调用 sheet.fillTemplate(dbRow) 即可
+  sheet.addNewSheet('FillDemo');
+  sheet.loadData([
+    ['客户名称', '{{name}}'],
+    ['合同编号', '{{contractNo}}'],
+    ['合同金额', '{{amount}}'],
+    ['签订日期', '{{date}}']
+  ], 'FillDemo');
+  var filled = sheet.fillTemplate({
+    name: '张三', contractNo: 'HT-2026-001', amount: 12345, date: '2026-10-01'
+  });
+  console.log('fillTemplate → 填充了 ' + filled + ' 格');
 
   // 切回 Sheet1
   sheet.goToSheet(0);
@@ -283,13 +311,14 @@
         { label: 'loadData(array)',       desc: 'Sheet1 载入二维数组',
           fn: function(){
             var s = sheet.addNewSheet('LoadDemo');
-            sheet.loadData([['ID','Name','Score'],[1,'Tom',88],[2,'Jerry',95]]);
+            sheet.loadData([['ID','Name','Score'],[1,'Tom',88],[2,'Jerry',95]], 'LoadDemo');
             apiLog('loadData → 新 sheet "' + s + '" 已载入 3 行');
           } },
         { label: 'bindData(flat)',        desc: '绑定 2 条员工数据',
           fn: function(){
             var s = sheet.addNewSheet('BindFlatDemo');
             sheet.bindData({
+              sheetName: 'BindFlatDemo',
               columns: [
                 { key:'name', title:'Name', width:100 },
                 { key:'role', title:'Role', width:100 }

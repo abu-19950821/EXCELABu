@@ -10,8 +10,7 @@
  * ── 数据操作 (Data Operations) ──
  *   .getCellValue(row, col)          Get cell display value / 获取单元格显示�?
  *   .setCellValue(row, col, value)   Set cell value ("=..." for formula) / 设置值（"=公式" 表示公式�?
- *   .getData()                       Get raw data map for active sheet / 获取当前工作表原始数�?
- *   .setData(data)                   Set raw data for active sheet / 设置当前工作表原始数�?
+ *   .getData()                       Get raw data map for active sheet / 获取当前工作表原始数?
  *   .loadData(data, [target])        Load 2D array into a sheet / 载入二维数组到工作表
  *   .bindData(spec)                  Bind object array with columns / 绑定对象数组（含列定义、表头、样式）
  *

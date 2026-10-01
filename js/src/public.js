@@ -21,13 +21,6 @@ export const PublicMixin = {
     return this.activeSheet.getData();
   },
 
-  /** Set all data for the active sheet */
-  setData(data) {
-    this.activeSheet.setData(data);
-    this._renderGrid();
-    this._updateFormulaBar();
-  },
-
   /** Load a 2D array into a sheet.
    *  Like ElementUI table, accepts data[row][col] in one call.
    *  Automatically detects formulas (=FORMULA), numbers, strings, booleans, dates.
@@ -104,7 +97,7 @@ export const PublicMixin = {
     }
   },
 
-  /** Select a range by reference (e.g., "B2:C3") / 通过引用选中一个范�?*/
+  /** Select a range by reference (e.g., "B2:C3") / 通过引用选中一个范�?*/
   selectRange(ref) {
     var parts = ref.split(':');
     if (parts.length !== 2) return;
@@ -185,7 +178,7 @@ export const PublicMixin = {
     this.container.classList.remove('excelabu');
   },
 
-  // ======================== bindData �?Template + Object Array ========================
+  // ======================== bindData �?Template + Object Array ========================
   /**
    * Bind an array of data objects to the sheet using column templates.
    * Each column defines its position span (row × col), styles, and data binding.
@@ -474,10 +467,221 @@ export const PublicMixin = {
     }
 
     this._setStatus('Bound ' + data.length + ' row(s)');
+  },
+
+  /** Fill placeholder tokens in a sheet with values from a plain object.
+   *  Default token syntax: {{fieldName}} and %fieldName%. Cell styles are preserved.
+   *
+   *  @param {Object} data - plain object mapping token-key -> value (e.g. a DB row)
+   *  @param {Object} [opts]
+   *  @param {RegExp}  [opts.pattern]     - token regex; the key must be in the first capture group
+   *  @param {Function} [opts.keyResolver] - (token)=>dataKey, default trims the token
+   *  @param {'keep'|'remove'} [opts.missing='keep'] - what to do when a token key is absent in data
+   *  @param {string|number} [opts.sheetName] - sheet to fill (name or 0-based index), default active
+   *  @returns {number} number of cells changed
+   */
+  fillTemplate(data, opts) {
+    if (!data || typeof data !== 'object') return 0;
+
+    var opt = opts || {};
+    var pattern = opt.pattern || /{{([^{}]+)}}|%([^%]+)%/g;
+    var keyResolver = opt.keyResolver || function (k) { return k.trim(); };
+    var missing = opt.missing || 'keep';
+
+    var sheet = this.activeSheet;
+    if (opt.sheetName !== undefined && opt.sheetName !== null) {
+      for (var i = 0; i < this.sheets.length; i++) {
+        if (this.sheets[i].name === String(opt.sheetName) || i === Number(opt.sheetName)) {
+          sheet = this.sheets[i];
+          this.activeSheetIndex = i;
+          break;
+        }
+      }
+    }
+
+    var changed = 0;
+    var pattern0 = pattern;
+    var cellKeys = Object.keys(sheet._data);
+    for (var ci = 0; ci < cellKeys.length; ci++) {
+      var key = cellKeys[ci];
+      var cell = sheet._data[key];
+      // Only plain string cells (no formula) can hold placeholders
+      if (!cell || typeof cell.value !== 'string' || cell.formula) continue;
+
+      pattern0.lastIndex = 0;
+      if (!pattern0.test(String(cell.value))) continue;
+
+      pattern0.lastIndex = 0;
+      var replaced = String(cell.value).replace(pattern0, function (raw, g1, g2) {
+        var tk = keyResolver(g1 != null ? g1 : g2);
+        if (data.hasOwnProperty(tk)) {
+          var v = data[tk];
+          return (v === null || v === undefined) ? '' : String(v);
+        }
+        return missing === 'remove' ? '' : raw;
+      });
+
+      if (replaced === cell.value) continue;
+
+      var rc = key.split(',');
+      sheet.setCell(parseInt(rc[0], 10), parseInt(rc[1], 10), replaced);
+      changed++;
+    }
+
+    if (changed > 0) {
+      this._renderGrid();
+      this._updateFormulaBar();
+      this._setStatus('Filled ' + changed + ' cell(s)');
+    }
+    return changed;
+  },
+
+  /** Fill a data region below a rendered header, leaving the header/template untouched.
+   *  Unlike bindData, this writes cell values only (no header rewriting).
+   *
+   *  Accepts two row shapes:
+   *   - flat objects:  [{ id:1, name:'A', ... }, ...]  → column positions come from
+   *     opts.columns or the sheet's previously bound bindData columns (via key).
+   *   - 2D arrays:     [[1,'A'],[2,'B']]               → written row by row from startCol.
+   *
+   *  @param {Array} data - array of row objects or 2D arrays
+   *  @param {Object} [opts]
+   *  @param {string|number} [opts.sheetName] - target sheet (name or 0-based index), default active
+   *  @param {number} [opts.startRow=0]       - first row of the data region
+   *  @param {number} [opts.startCol=0]       - first column of the data region
+   *  @param {Array}  [opts.columns]          - column defs ({key:...}) used to map object rows
+   *  @param {'replace'|'append'} [opts.mode='replace'] - replace existing data region, or append to its end
+   *  @param {number} [opts.styleRow=-1]      - template row to copy style from for otherwise-empty cells
+   *  @returns {number} number of rows written
+   */
+  fillData(data, opts) {
+    var opt = opts || {};
+    var sheet = this.activeSheet;
+    if (opt.sheetName !== undefined && opt.sheetName !== null) {
+      var resolved = false;
+      for (var i = 0; i < this.sheets.length; i++) {
+        if (this.sheets[i].name === String(opt.sheetName) || i === Number(opt.sheetName)) {
+          sheet = this.sheets[i];
+          this.activeSheetIndex = i;
+          resolved = true;
+          break;
+        }
+      }
+      if (!resolved) {
+        this.addSheet(String(opt.sheetName));
+        sheet = this.sheets[this.sheets.length - 1];
+        this.activeSheetIndex = this.sheets.length - 1;
+      }
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn('ExcelABu.fillData: data must be a non-empty array of row objects / 2D arrays');
+      return 0;
+    }
+
+    var startRow = opt.startRow != null ? Math.max(0, Number(opt.startRow)) : 0;
+    var startCol = opt.startCol != null ? Math.max(0, Number(opt.startCol)) : 0;
+    var mode = (opt.mode === 'append') ? 'append' : 'replace';
+    var styleRow = (opt.styleRow != null) ? Number(opt.styleRow) : -1;
+
+    // Object rows need columns to map keys → columns
+    var columns = opt.columns || (sheet._bindConfig && sheet._bindConfig.columns) || null;
+    var objectMode = !Array.isArray(data[0]) && typeof data[0] === 'object';
+    if (objectMode) {
+      if (!columns || !columns.length) {
+        console.warn('ExcelABu.fillData: object rows need columns (pass opts.columns or bindData the sheet first)');
+        return 0;
+      }
+    }
+    var colOffsets = (sheet._bindConfig && sheet._bindConfig.colOffsets) || null;
+
+    // Where to begin writing
+    var writeRow = startRow;
+    if (mode === 'append') {
+      if (sheet._fillRows != null) {
+        writeRow = sheet._fillRows;
+      } else {
+        var extA = sheet.getLastDataExtent();
+        var found = -1;
+        rowscan:
+        for (var rr = startRow; rr <= extA.r + 1; rr++) {
+          for (var cc = startCol; cc <= extA.c; cc++) {
+            if (sheet._data[rr + ',' + cc] !== undefined) continue rowscan;
+          }
+          found = rr; break;
+        }
+        writeRow = found >= 0 ? found : startRow;
+      }
+    }
+
+    // Replace mode: clear the old data region first (keep cell styles)
+    if (mode === 'replace') {
+      var ext0 = sheet.getLastDataExtent();
+      for (var rr0 = writeRow; rr0 <= ext0.r; rr0++) {
+        for (var cc0 = startCol; cc0 <= ext0.c; cc0++) {
+          if (sheet._data[rr0 + ',' + cc0] !== undefined) sheet.setCell(rr0, cc0, '');
+        }
+      }
+    }
+
+    // Write new rows
+    var lastWriteRow = writeRow;
+    for (var ri = 0; ri < data.length; ri++) {
+      var row = data[ri];
+      if (row === null || typeof row !== 'object') continue;
+      var r = writeRow + ri;
+      lastWriteRow = r;
+
+      if (objectMode) {
+        for (var ci = 0; ci < columns.length; ci++) {
+          if (!columns[ci].key) continue;
+          var v = row[columns[ci].key];
+          if (v === null || v === undefined || v === '') continue;
+          var colO = startCol + (colOffsets && colOffsets[ci] != null ? colOffsets[ci] : ci);
+          var colStyle = _normalizeStyle(columns[ci].style);
+          this._writeFilledCell(sheet, r, colO, v, styleRow, colStyle);
+        }
+      } else {
+        if (!Array.isArray(row)) continue;
+        for (var c = 0; c < row.length; c++) {
+          var v2 = row[c];
+          if (v2 === null || v2 === undefined || v2 === '') continue;
+          this._writeFilledCell(sheet, r, startCol + c, v2, styleRow);
+        }
+      }
+    }
+    if (mode === 'append') sheet._fillRows = lastWriteRow + 1;
+
+    if (data.length > 0) {
+      this._renderGrid();
+      this._updateFormulaBar();
+      this._setStatus('Filled ' + data.length + ' row(s)');
+    }
+    return data.length;
+  },
+
+  /** Internal helper: place a value into a cell.
+   *  A brand-new cell gets its style from `style` (column style from columns def)
+   *  falling back to copying the cell at `styleRow` when provided. Existing cells
+   *  keep whatever style they already have. */
+  _writeFilledCell(sheet, r, col, v, styleRow, style) {
+    if (sheet._data[r + ',' + col] === undefined) {
+      var tStyle = null;
+      if (style) {
+        tStyle = Utils.deepClone(style);
+      } else if (styleRow >= 0) {
+        var tCell = sheet._data[styleRow + ',' + col];
+        if (tCell && tCell._style) tStyle = Utils.deepClone(tCell._style);
+      }
+      if (tStyle) {
+        sheet._data[r + ',' + col] = { value: null, formula: null, display: null, _style: tStyle };
+      }
+    }
+    sheet.setCell(r, col, v);
   }
 };
 
-// ── Style normalizer: user-facing keys �?internal _style keys ──
+// ── Style normalizer: user-facing keys �?internal _style keys ──
 var STYLE_MAP = {
   color:           'color',
   background:      'bgColor',

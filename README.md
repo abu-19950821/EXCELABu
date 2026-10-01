@@ -292,9 +292,10 @@ excelabu/
 | `getCellValue(row, col)` | 获取单元格**显示值**（公式自动求值） |
 | `setCellValue(row, col, value)` | 设置单元格值。以 `=` 开头的值被识别为公式 |
 | `getData()` | 获取当前工作表原始数据映射 |
-| `setData(data)` | 设置当前工作表原始数据 |
 | `loadData(data, [target])` | 将二维数组载入工作表，自动识别公式/数字/字符串 |
 | `bindData(spec)` | 将对象数组绑定到工作表（含列定义、表头、样式、分组） |
+| `fillData(data, opts)` | 向已渲染的数据区写入/追加对象数组（`mode:replace|append`） |
+| `fillTemplate(data, opts)` | 用键值数据替换模板中的 `{{x}}`/`%x%` 占位符 |
 
 ### 导航与选择
 
@@ -427,15 +428,12 @@ sheet.loadData(data, 1);
 sheet.loadData(data, 'Employee');
 ```
 
-#### getData / setData — 原始数据映射
+#### getData — 原始数据映射
 
 ```javascript
 // 获取原始数据
 const rawData = sheet.getData();
 // 返回: { "0,0": { value: 'Revenue' }, "0,1": { value: 1200, formula: null }, ... }
-
-// 还原数据
-sheet.setData(rawData);
 ```
 
 ### 数据绑定（bindData）

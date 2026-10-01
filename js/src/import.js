@@ -339,6 +339,11 @@ export const ImportMixin = {
         }
       }
 
+      // Data and merges were written directly to bypass setCell/mergeCells,
+      // so the extent and merge index must be rebuilt explicitly.
+      sheet._recalcLastDataExtent();
+      sheet._rebuildMergeIndex();
+
       this.sheets.push(sheet);
     }
 

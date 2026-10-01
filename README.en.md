@@ -293,9 +293,10 @@ excelabu/
 | `getCellValue(row, col)` | Get the **display value** of a cell (formulas are evaluated automatically) |
 | `setCellValue(row, col, value)` | Set a cell value. Prefix with `"=..."` for formulas |
 | `getData()` | Get raw data map for the active sheet |
-| `setData(data)` | Set raw data for the active sheet |
 | `loadData(data, [target])` | Load a 2D array into a sheet; auto-detects formulas, numbers, strings |
 | `bindData(spec)` | Bind an object array to a sheet (with column definitions, headers, styles, grouping) |
+| `fillData(data, opts)` | Write/append an object array into a rendered data region (`mode:replace\|append`) |
+| `fillTemplate(data, opts)` | Replace `{{x}}`/`%x%` placeholders in a template with key-value data |
 
 ### Navigation & Selection
 
@@ -428,15 +429,12 @@ sheet.loadData(data, 1);
 sheet.loadData(data, 'Employee');
 ```
 
-#### getData / setData — Raw Data Map
+#### getData — Raw Data Map
 
 ```javascript
 // Get raw data
 const rawData = sheet.getData();
 // Returns: { "0,0": { value: 'Revenue' }, "0,1": { value: 1200, formula: null }, ... }
-
-// Restore from raw data
-sheet.setData(rawData);
 ```
 
 ### Data Binding (bindData)
