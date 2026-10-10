@@ -2,7 +2,7 @@
 
 export const EventsKeyboardMixin = {
   _onKeyDown(e) {
-    if (document.activeElement === this.formulaInput) return;
+    if (this.formulaInput && document.activeElement === this.formulaInput) return;
     
     if (this.editingCell) return;
 

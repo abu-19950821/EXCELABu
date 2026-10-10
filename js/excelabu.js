@@ -87,6 +87,33 @@ import { DEFAULT_OPTIONS } from '../config/theme.js?v=2';
 //  ExcelABu - Main Spreadsheet Component
 // ============================================================
 class ExcelABu {
+  static _deepMerge(target, source) {
+    var out = {};
+    for (var k in target) {
+      if (target.hasOwnProperty(k)) {
+        if (target[k] && typeof target[k] === 'object' && !Array.isArray(target[k])) {
+          out[k] = ExcelABu._deepMerge(target[k], source && source[k]);
+        } else {
+          out[k] = target[k];
+        }
+      }
+    }
+    if (source) {
+      for (var k2 in source) {
+        if (source.hasOwnProperty(k2)) {
+          var sv = source[k2];
+          if (sv && typeof sv === 'object' && !Array.isArray(sv)
+              && target[k2] && typeof target[k2] === 'object' && !Array.isArray(target[k2])) {
+            out[k2] = ExcelABu._deepMerge(target[k2], sv);
+          } else {
+            out[k2] = sv;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
   /**
    * @param {HTMLElement|string} container - The container element or selector
    * @param {Object} options
@@ -95,6 +122,15 @@ class ExcelABu {
    * @param {number} options.defaultColWidth - Default column width in px (default 64)
    * @param {number} options.defaultRowHeight - Default row height in px (default 24)
    * @param {string} options.sheetName - Initial sheet name (default 'Sheet1')
+   * @param {Object} options.ui - UI visibility configuration (all default true)
+   * @param {boolean} options.ui.menuBar - Show menu bar
+   * @param {boolean} options.ui.toolbar - Show toolbar
+   * @param {boolean} options.ui.formulaBar - Show formula bar
+   * @param {boolean} options.ui.sheetTabs - Show sheet tabs bar
+   * @param {boolean} options.ui.statusBar - Show status bar
+   * @param {boolean} options.ui.contextMenu - Show right-click context menu
+   * @param {Object} options.ui.toolbarItems - Fine-grained toolbar item visibility
+   * @param {Object} options.ui.menuItems - Fine-grained menu item visibility
    */
   constructor(container, options = {}) {
     this.container = typeof container === 'string'
@@ -105,7 +141,7 @@ class ExcelABu {
       throw new Error('ExcelABu: Container element not found');
     }
 
-    this.options = Object.assign({}, DEFAULT_OPTIONS, options);
+    this.options = ExcelABu._deepMerge(DEFAULT_OPTIONS, options);
 
     // State
     this.sheets = [];
@@ -114,6 +150,7 @@ class ExcelABu {
     this.activeCell = { r: 0, c: 0 };
     this.selectionAnchor = { r: 0, c: 0 }; // Anchor for shift+arrow extension
     this.editingCell = null;
+    this._formulaRefAnchor = null;
     this.clipboard = null;
     this.clipboardAction = null; // 'copy' | 'cut'
     this.undoStack = {};

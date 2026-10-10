@@ -11,7 +11,7 @@
     var rows = [];
     for (var r = r1; r <= r2; r++) {
       var hasData = false;
-      for (var cc = 0; cc < sheet.colCount; cc++) {
+      for (var cc = c1; cc <= c2; cc++) {
         var checkCell = sheet._data[sheet._key(r, cc)];
         if (checkCell && checkCell.value != null && checkCell.value !== '') { hasData = true; break; }
       }
@@ -26,29 +26,29 @@
       }
       rows.push(row);
     }
-    var allNumeric = true;
+    var allNumeric = rows.length > 0;
     for (var i = 0; i < rows.length; i++) {
-      if (typeof rows[i].key !== 'number' || isNaN(rows[i].key)) { allNumeric = false; break; }
+      if (rows[i].key === '' || rows[i].key == null || isNaN(Number(rows[i].key))) { allNumeric = false; break; }
     }
     rows.sort(function(a, b) {
       if (allNumeric) {
-        if (a.key === b.key) return 0;
-        if (ascending) return a.key - b.key;
-        return b.key - a.key;
+        var na = Number(a.key), nb = Number(b.key);
+        if (na === nb) return 0;
+        return ascending ? na - nb : nb - na;
       }
       var va = String(a.key).toLowerCase();
       var vb = String(b.key).toLowerCase();
       if (va === vb) return 0;
-      if (ascending) return va < vb ? -1 : 1;
-      return va > vb ? -1 : 1;
+      return ascending ? (va < vb ? -1 : 1) : (va > vb ? -1 : 1);
     });
     var newMerges = {};
     for (var mk in sheet.mergedCells) {
       var m = sheet.mergedCells[mk];
-      if (m.r1 >= r1 && m.r2 <= r2 && m.c1 >= c1 && m.c2 <= c2) continue;
+      if (m.r1 >= r1 && m.r2 <= r2) continue;
       newMerges[mk] = m;
     }
     sheet.mergedCells = newMerges;
+    sheet._rebuildMergeIndex();
     for (var r = r1; r <= r2; r++) {
       for (var cc = 0; cc < sheet.colCount; cc++) { delete sheet._data[sheet._key(r, cc)]; }
     }

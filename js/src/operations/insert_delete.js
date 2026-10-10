@@ -23,6 +23,8 @@ export const OperationsInsertDeleteMixin = {
       newMerges[sheet._key(nr1, m.c1)] = { r1: nr1, c1: m.c1, r2: nr2, c2: m.c2 };
     }
     sheet.mergedCells = newMerges;
+    sheet._rebuildMergeIndex();
+    sheet._invalidateLayoutCache();
     sheet.rowCount++;
     this._renderGrid(); this._updateSelectionDisplay();
     this._setStatus('Inserted row ' + (insertAt + 1));
@@ -46,14 +48,22 @@ export const OperationsInsertDeleteMixin = {
     var newMerges = {};
     for (var mk in sheet.mergedCells) {
       var m = sheet.mergedCells[mk];
-      if (m.r1 === deleteAt) continue;
-      if (m.r1 >= deleteAt || m.r2 >= deleteAt) {
-        var nr1 = m.r1 > deleteAt ? m.r1 - 1 : m.r1;
-        var nr2 = m.r2 > deleteAt ? m.r2 - 1 : m.r2;
-        newMerges[sheet._key(nr1, m.c1)] = { r1: nr1, c1: m.c1, r2: nr2, c2: m.c2 };
-      } else { newMerges[mk] = m; }
+      if (m.r1 === deleteAt && m.r2 === deleteAt) continue;
+      if (m.r1 === deleteAt) {
+        newMerges[sheet._key(deleteAt, m.c1)] = { r1: deleteAt, c1: m.c1, r2: m.r2 - 1, c2: m.c2 };
+      } else if (m.r1 < deleteAt && m.r2 > deleteAt) {
+        newMerges[sheet._key(m.r1, m.c1)] = { r1: m.r1, c1: m.c1, r2: m.r2 - 1, c2: m.c2 };
+      } else if (m.r1 < deleteAt && m.r2 === deleteAt) {
+        newMerges[sheet._key(m.r1, m.c1)] = { r1: m.r1, c1: m.c1, r2: deleteAt, c2: m.c2 };
+      } else if (m.r1 > deleteAt) {
+        newMerges[sheet._key(m.r1 - 1, m.c1)] = { r1: m.r1 - 1, c1: m.c1, r2: m.r2 - 1, c2: m.c2 };
+      } else {
+        newMerges[mk] = m;
+      }
     }
     sheet.mergedCells = newMerges;
+    sheet._rebuildMergeIndex();
+    sheet._invalidateLayoutCache();
     sheet.rowCount--;
     if (this.activeCell && this.activeCell.r > deleteAt) { this.activeCell.r--; }
     if (this.selection) {
@@ -88,6 +98,8 @@ export const OperationsInsertDeleteMixin = {
       newMerges[sheet._key(m.r1, nc1)] = { r1: m.r1, c1: nc1, r2: m.r2, c2: nc2 };
     }
     sheet.mergedCells = newMerges;
+    sheet._rebuildMergeIndex();
+    sheet._invalidateLayoutCache();
     sheet.colCount++;
     this._renderGrid(); this._updateSelectionDisplay();
     this._setStatus('Inserted column ' + Utils.colToLetter(insertAt));
@@ -112,14 +124,22 @@ export const OperationsInsertDeleteMixin = {
     var newMerges = {};
     for (var mk in sheet.mergedCells) {
       var m = sheet.mergedCells[mk];
-      if (m.c1 === deleteAt) continue;
-      if (m.c1 >= deleteAt || m.c2 >= deleteAt) {
-        var nc1 = m.c1 > deleteAt ? m.c1 - 1 : m.c1;
-        var nc2 = m.c2 > deleteAt ? m.c2 - 1 : m.c2;
-        newMerges[sheet._key(m.r1, nc1)] = { r1: m.r1, c1: nc1, r2: m.r2, c2: nc2 };
-      } else { newMerges[mk] = m; }
+      if (m.c1 === deleteAt && m.c2 === deleteAt) continue;
+      if (m.c1 === deleteAt) {
+        newMerges[sheet._key(m.r1, deleteAt)] = { r1: m.r1, c1: deleteAt, r2: m.r2, c2: m.c2 - 1 };
+      } else if (m.c1 < deleteAt && m.c2 > deleteAt) {
+        newMerges[sheet._key(m.r1, m.c1)] = { r1: m.r1, c1: m.c1, r2: m.r2, c2: m.c2 - 1 };
+      } else if (m.c1 < deleteAt && m.c2 === deleteAt) {
+        newMerges[sheet._key(m.r1, m.c1)] = { r1: m.r1, c1: m.c1, r2: m.r2, c2: deleteAt };
+      } else if (m.c1 > deleteAt) {
+        newMerges[sheet._key(m.r1, m.c1 - 1)] = { r1: m.r1, c1: m.c1 - 1, r2: m.r2, c2: m.c2 - 1 };
+      } else {
+        newMerges[mk] = m;
+      }
     }
     sheet.mergedCells = newMerges;
+    sheet._rebuildMergeIndex();
+    sheet._invalidateLayoutCache();
     sheet.colCount--;
     if (this.activeCell && this.activeCell.c > deleteAt) { this.activeCell.c--; }
     if (this.selection) {

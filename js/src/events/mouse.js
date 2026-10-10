@@ -33,6 +33,15 @@ export const EventsMouseMixin = {
 
     this._hideContextMenu();
 
+    if (this.editingCell && cellEl) {
+      const r = parseInt(cellEl.dataset.row, 10);
+      const c = parseInt(cellEl.dataset.col, 10);
+      if (this._tryFormulaReference({ type: 'cell', r, c, shift: e.shiftKey })) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     this._finishEditing();
 
     if (cellEl) {

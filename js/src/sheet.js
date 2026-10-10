@@ -10,15 +10,37 @@ import { GRID } from '../../config/theme.js?v=3';
       this.name = name;
       this.rowCount = rowCount;
       this.colCount = colCount;
-      this._data = {};        // key: "row,col" -> { value, formula, style }
-      this.colWidths = {};    // key: col index -> width in px
-      this.rowHeights = {};   // key: row index -> height in px
-      this.mergedCells = {};  // key: "r,c" -> { r1, c1, r2, c2 } (only top-left stores the range)
-      this._mergeIndex = {}; // row-index: { r: [merge, ...] } for O(1) getMergeRange
+      this._data = {};
+      this.colWidths = {};
+      this.rowHeights = {};
+      this.mergedCells = {};
+      this._mergeIndex = {};
       this.formulaEval = new FormulaEvaluator(this);
-      // Track last non-empty row/col for O(1) extent queries (avoid full _data scan)
       this._lastDataRow = -1;
       this._lastDataCol = -1;
+      this._rowTopCache = null;
+      this._colLeftCache = null;
+    }
+
+    _invalidateLayoutCache() {
+      this._rowTopCache = null;
+      this._colLeftCache = null;
+    }
+
+    _buildRowTopCache() {
+      var n = this.rowCount;
+      var cache = new Array(n);
+      var acc = GRID.COL_HEADER_HEIGHT;
+      for (var i = 0; i < n; i++) { cache[i] = acc; acc += this.getRowHeight(i); }
+      this._rowTopCache = cache;
+    }
+
+    _buildColLeftCache() {
+      var n = this.colCount;
+      var cache = new Array(n);
+      var acc = GRID.ROW_HEADER_WIDTH;
+      for (var i = 0; i < n; i++) { cache[i] = acc; acc += this.getColWidth(i); }
+      this._colLeftCache = cache;
     }
 
     /** Recalculate _lastDataRow/_lastDataCol by scanning _data keys */
@@ -32,7 +54,7 @@ import { GRID } from '../../config/theme.js?v=3';
       }
     }
 
-    /** Get the extent of non-empty cells â€?uses cached values (O(1)) */
+    /** Get the extent of non-empty cells ï¿½?uses cached values (O(1)) */
     getLastDataExtent() {
       if (this._lastDataRow < 0 && this._lastDataCol < 0) {
         // Verify: there might genuinely be data at row 0, col 0
@@ -126,26 +148,28 @@ import { GRID } from '../../config/theme.js?v=3';
       if (c > this._lastDataCol) this._lastDataCol = c;
     }
 
+    _autoExpandTo(minRows, minCols) {
+      if (this.rowCount < minRows) this.rowCount = minRows;
+      if (this.colCount < minCols) this.colCount = minCols;
+    }
+
     setCell(r, c, value) {
       const key = this._key(r, c);
       var existingCell = this._data[key];
       var _prevStyle = existingCell ? Utils.deepClone(existingCell._style) : {};
 
-      // Handle empty/deletion
       if (value === '' || value === null || value === undefined) {
-        // Keep style when clearing value
         if (_prevStyle && Object.keys(_prevStyle).length > 0) {
           this._data[key] = { value: '', _style: _prevStyle };
         } else {
           delete this._data[key];
         }
-        // Deletion may shrink extent â€?recalc
         this._recalcLastDataExtent();
         return;
       }
 
-      // Track extent
       this._updateLastDataExtent(r, c);
+      this._autoExpandTo(r + 1 + GRID.EXPAND_BUFFER, c + 1 + GRID.EXPAND_BUFFER);
 
       // Handle Date objects
       if (value instanceof Date) {
@@ -219,6 +243,7 @@ import { GRID } from '../../config/theme.js?v=3';
         return;
       }
       this._updateLastDataExtent(r, c);
+      this._autoExpandTo(r + 1 + GRID.EXPAND_BUFFER, c + 1 + GRID.EXPAND_BUFFER);
       if (this._data[key] && this._data[key]._style) {
         var _prevStyle = this._data[key]._style;
         this._data[key] = {
@@ -245,23 +270,30 @@ import { GRID } from '../../config/theme.js?v=3';
       var key = this._key(r, c);
       var cell = this._data[key];
       if (!cell) return;
-      // Keep _style, only clear value/formula/display (Clear Contents behavior)
       var style = cell._style;
       if (style && Object.keys(style).length > 0) {
         this._data[key] = { value: '', _style: style };
       } else {
         delete this._data[key];
       }
-      // Deletion may shrink extent
       this._recalcLastDataExtent();
     }
 
     clearRange(r1, c1, r2, c2) {
-      for (let r = r1; r <= r2; r++) {
-        for (let c = c1; c <= c2; c++) {
-          this.clearCell(r, c);
+      for (var r = r1; r <= r2; r++) {
+        for (var c = c1; c <= c2; c++) {
+          var key = this._key(r, c);
+          var cell = this._data[key];
+          if (!cell) continue;
+          var style = cell._style;
+          if (style && Object.keys(style).length > 0) {
+            this._data[key] = { value: '', _style: style };
+          } else {
+            delete this._data[key];
+          }
         }
       }
+      this._recalcLastDataExtent();
     }
 
     getData() {
@@ -279,6 +311,7 @@ import { GRID } from '../../config/theme.js?v=3';
 
     setColWidth(c, width) {
       this.colWidths[c] = Math.max(GRID.MIN_COL_WIDTH, width);
+      this._invalidateLayoutCache();
     }
 
     getRowHeight(r) {
@@ -287,6 +320,7 @@ import { GRID } from '../../config/theme.js?v=3';
 
     setRowHeight(r, height) {
       this.rowHeights[r] = Math.max(GRID.MIN_ROW_HEIGHT, height);
+      this._invalidateLayoutCache();
     }
 
     /** Merge a range of cells. Only top-left keeps data. */
@@ -331,16 +365,25 @@ import { GRID } from '../../config/theme.js?v=3';
       return false;
     }
 
-    /** Check if a cell is part of a merged region */
     isMerged(r, c) {
-      for (const key in this.mergedCells) {
-        const m = this.mergedCells[key];
-        if (r >= m.r1 && r <= m.r2 && c >= m.c1 && c <= m.c2) {
-          // Return true for any cell in the merged region
-          return true;
-        }
-      }
-      return false;
+      return this.getMergeRange(r, c) !== null;
+    }
+
+    getRowTop(r) {
+      if (this._rowTopCache === null) this._buildRowTopCache();
+      return this._rowTopCache[r];
+    }
+
+    getColLeft(c) {
+      if (this._colLeftCache === null) this._buildColLeftCache();
+      return this._colLeftCache[c];
+    }
+
+    getMergedSize(mergeRange) {
+      var totalWidth = 0, totalHeight = 0;
+      for (var mc = mergeRange.c1; mc <= mergeRange.c2; mc++) totalWidth += this.getColWidth(mc);
+      for (var mr = mergeRange.r1; mr <= mergeRange.r2; mr++) totalHeight += this.getRowHeight(mr);
+      return { width: totalWidth, height: totalHeight };
     }
 
     /** Get the merge range that contains this cell, or null */

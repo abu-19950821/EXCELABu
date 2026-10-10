@@ -13,6 +13,12 @@ export const RenderingCellMixin = {
       return;
     }
 
+    var sizeChanged = this._ensureGridSize();
+    if (sizeChanged) {
+      this._renderGrid();
+      return;
+    }
+
     var sheet = this.activeSheet;
     var key = r + ',' + c;
     var el = this._cellDOM && this._cellDOM[key];
@@ -35,24 +41,23 @@ export const RenderingCellMixin = {
     var width = sheet.getColWidth(c);
     var rowHeight = sheet.getRowHeight(r);
     if (merge) {
-      var totalWidth = 0;
-      for (var mc = merge.c1; mc <= merge.c2; mc++) totalWidth += sheet.getColWidth(mc);
-      var totalHeight = 0;
-      for (var mr = merge.r1; mr <= merge.r2; mr++) totalHeight += sheet.getRowHeight(mr);
-      width = totalWidth; rowHeight = totalHeight;
+      var mergedSize = sheet.getMergedSize(merge);
+      width = mergedSize.width; rowHeight = mergedSize.height;
     }
     var styleAttr = this._buildCellStyleAttr(cell, width, rowHeight, r, c);
     var styleClean = styleAttr.replace(/^\s*/, '').replace(/^style="/, '').replace(/"$/, '');
-    el.setAttribute('style', styleClean);
-    el.innerHTML = escapedValue;
+    var frozenExtra = '';
     if (el.getAttribute('data-frozen') === 'true') {
       var isFrozenRow = el.classList.contains('excelabu-cell-frozen-row') || el.classList.contains('excelabu-cell-frozen-both');
       var isFrozenCol = el.classList.contains('excelabu-cell-frozen-col') || el.classList.contains('excelabu-cell-frozen-both');
       var frozenTop = el.getAttribute('data-frozen-top');
       var frozenLeft = el.getAttribute('data-frozen-left');
-      if (isFrozenRow && frozenTop !== null) el.style.top = frozenTop + 'px';
-      if (isFrozenCol && frozenLeft !== null) el.style.left = frozenLeft + 'px';
+      if (isFrozenRow && frozenTop !== null) frozenExtra += 'position:sticky;top:' + frozenTop + 'px;';
+      if (isFrozenCol && frozenLeft !== null) frozenExtra += 'position:sticky;left:' + frozenLeft + 'px;';
     }
+    if (frozenExtra) styleClean = frozenExtra + styleClean;
+    el.setAttribute('style', styleClean);
+    el.innerHTML = escapedValue;
   },
 
   _scrollRAF: null,

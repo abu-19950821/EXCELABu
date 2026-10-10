@@ -8,7 +8,7 @@ export const EditingMixin = {
     if (e.key === 'Enter') {
       e.preventDefault();
       this._commitFormula();
-      this.formulaInput.blur();
+      if (this.formulaInput) this.formulaInput.blur();
       this.gridScroll.focus();
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -17,13 +17,11 @@ export const EditingMixin = {
       e.preventDefault();
       this._commitFormula();
       this._moveSelection(this.activeCell.r, this.activeCell.c + 1, false);
-      this.formulaInput.blur();
+      if (this.formulaInput) this.formulaInput.blur();
     }
   },
 
   _onFormulaInput() {
-    // Formula bar editing: don't persist to data model on every keystroke.
-    // Just track that formula bar has been modified; commit on Enter/Tab only.
     if (this.editingCell) return;
     this._formulaBarDirty = true;
   },
@@ -31,7 +29,7 @@ export const EditingMixin = {
   _commitFormula() {
     const ac = this.activeCell;
     if (!ac) return;
-    const value = this.formulaInput.value;
+    const value = this.formulaInput ? this.formulaInput.value : '';
     this._pushUndo();
     this.activeSheet.setCell(ac.r, ac.c, value);
     this._formulaBarDirty = false;
@@ -44,20 +42,27 @@ export const EditingMixin = {
     this._finishEditing();
     this._formulaBarDirty = false;
     this._updateFormulaBar();
-    this.formulaInput.blur();
+    if (this.formulaInput) this.formulaInput.blur();
   },
 
   _updateFormulaBar() {
     const ac = this.activeCell;
     if (!ac) {
-      this.cellRefDisplay.textContent = '';
-      this.formulaInput.value = '';
+      if (this.cellRefDisplay) this.cellRefDisplay.textContent = '';
+      if (this.formulaInput) this.formulaInput.value = '';
       return;
     }
 
-    this.cellRefDisplay.textContent = Utils.toCellRef(ac.r, ac.c);
+    if (this.cellRefDisplay) {
+      const sel = this.selection;
+      if (sel && (sel.r1 !== sel.r2 || sel.c1 !== sel.c2)) {
+        this.cellRefDisplay.textContent = Utils.toCellRef(sel.r1, sel.c1) + ':' + Utils.toCellRef(sel.r2, sel.c2);
+      } else {
+        this.cellRefDisplay.textContent = Utils.toCellRef(ac.r, ac.c);
+      }
+    }
 
-    // Don't overwrite formula bar while user is actively editing it
+    if (!this.formulaInput) return;
     if (this._formulaBarDirty) return;
 
     const cell = this.activeSheet.getCell(ac.r, ac.c);
@@ -98,9 +103,9 @@ export const EditingMixin = {
   },
 
   _startEditing(r, c, clearFirst, seedChar) {
-    // Cell is already selected from click/keyboard - just update ref without scrolling
     this.activeCell = { r, c };
-    // Clear formula bar dirty flag since inline editing takes over
+    this.editingCell = null;
+    this._formulaRefAnchor = null;
     this._formulaBarDirty = false;
     this._updateFormulaBar();
 
@@ -117,43 +122,40 @@ export const EditingMixin = {
       editValue = String(cell.value !== null && cell.value !== undefined ? cell.value : '');
     }
 
-    // Sync formula bar
-    formulaInput.value = editValue;
+    if (formulaInput) formulaInput.value = editValue;
     this.editingCell = { r, c };
 
-    // Create inline editor on the cell
     const cellEl = this.gridTable.querySelector(
       '.excelabu-cell[data-row="' + r + '"][data-col="' + c + '"]'
     );
     if (!cellEl) {
-      // Cell not visible (maybe scrolled out of view), use formula bar instead
-      formulaInput.focus({ preventScroll: true });
-      formulaInput.select();
-      this._formulaBarDirty = true;
+      if (formulaInput) {
+        formulaInput.focus({ preventScroll: true });
+        formulaInput.select();
+        this._formulaBarDirty = true;
+      }
       this._setStatus('Edit');
       return;
     }
 
     const editor = this._createInlineEditor(cellEl, editValue);
 
-    // Focus and position cursor
     if (seedChar) {
       editor.focus({ preventScroll: true });
       editor.setSelectionRange(seedChar.length, seedChar.length);
     } else {
       editor.focus({ preventScroll: true });
       var len = editValue.length;
-      // Defer to after browser focus/select-all to override cursor position
       setTimeout(function () {
         editor.setSelectionRange(len, len);
       }, 0);
     }
 
-    // Bind editor events
     const commitEdit = (moveDir) => {
       const val = editor.value;
       this._removeCellEditor();
       this.editingCell = null;
+      this._formulaRefAnchor = null;
       this._pushUndo();
       sheet.setCell(r, c, val);
       this._renderGrid();
@@ -171,6 +173,7 @@ export const EditingMixin = {
     const cancelEdit = () => {
       this._removeCellEditor();
       this.editingCell = null;
+      this._formulaRefAnchor = null;
       this._updateFormulaBar();
       this._setStatus('Ready');
     };
@@ -178,13 +181,11 @@ export const EditingMixin = {
     editor.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         if (e.altKey) {
-          // Alt+Enter: insert newline at cursor
           e.preventDefault();
           var start = editor.selectionStart;
           var end   = editor.selectionEnd;
           editor.value = editor.value.substring(0, start) + '\n' + editor.value.substring(end);
           editor.selectionStart = editor.selectionEnd = start + 1;
-          // Trigger auto-resize
           editor.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
           e.preventDefault();
@@ -200,9 +201,7 @@ export const EditingMixin = {
     });
 
     editor.addEventListener('input', () => {
-      // Sync to formula bar
-      formulaInput.value = editor.value;
-      // Auto-resize height to fit content
+      if (formulaInput) formulaInput.value = editor.value;
       editor.style.height = 'auto';
       editor.style.height = Math.max(
         cellEl.offsetHeight,
@@ -218,16 +217,16 @@ export const EditingMixin = {
       }, UI.BLUR_COMMIT_DELAY);
     });
 
-    // Also bind formula input changes back to editor
-    const syncFromFormula = () => {
-      if (this.cellEditor) {
-        this.cellEditor.value = formulaInput.value;
-      }
-    };
-    formulaInput.addEventListener('input', syncFromFormula);
-    this._formulaSyncHandler = syncFromFormula;
+    if (formulaInput) {
+      const syncFromFormula = () => {
+        if (this.cellEditor) {
+          this.cellEditor.value = formulaInput.value;
+        }
+      };
+      formulaInput.addEventListener('input', syncFromFormula);
+      this._formulaSyncHandler = syncFromFormula;
+    }
 
-    // Focus without scrolling
     editor.focus({ preventScroll: true });
     editor.select();
     this._setStatus('Edit');
@@ -235,11 +234,10 @@ export const EditingMixin = {
 
   _removeCellEditor() {
     if (this.cellEditor) {
-      if (this._formulaSyncHandler) {
+      if (this._formulaSyncHandler && this.formulaInput) {
         this.formulaInput.removeEventListener('input', this._formulaSyncHandler);
         this._formulaSyncHandler = null;
       }
-      // Remove editing class from parent cell
       const parentCell = this.cellEditor.parentElement;
       if (parentCell) {
         parentCell.classList.remove('editing');
@@ -252,18 +250,67 @@ export const EditingMixin = {
   _finishEditing() {
     if (this.editingCell) {
       const { r, c } = this.editingCell;
-      const value = this.cellEditor ? this.cellEditor.value : this.formulaInput.value;
+      const value = this.cellEditor ? this.cellEditor.value : (this.formulaInput ? this.formulaInput.value : '');
       this._removeCellEditor();
       this.editingCell = null;
+      this._formulaRefAnchor = null;
       this._pushUndo();
       this.activeSheet.setCell(r, c, value);
-      // Store the last edited cell so toolbar actions can apply to it
       this._lastEditedCell = { r, c };
       this._renderCell(r, c);
       this._updateSelectionDisplay();
       this._updateFormulaBar();
       this._setStatus('Ready');
     }
+  },
+
+  _cursorInString(formula, cursorPos) {
+    let inStr = false;
+    for (let i = 0; i < cursorPos && i < formula.length; i++) {
+      if (formula[i] === '"') {
+        if (inStr && formula[i + 1] === '"') { i++; continue; }
+        inStr = !inStr;
+      }
+    }
+    return inStr;
+  },
+
+  _tryFormulaReference(opts) {
+    const editor = this.cellEditor;
+    const formulaInput = this.formulaInput;
+    const currentValue = editor ? editor.value : (formulaInput ? formulaInput.value : '');
+
+    if (!currentValue.startsWith('=')) return false;
+
+    const cursorPos = editor ? editor.selectionStart : (currentValue.length);
+    if (this._cursorInString(currentValue, cursorPos)) return false;
+
+    let ref;
+    if (opts.shift && this._formulaRefAnchor) {
+      const a = this._formulaRefAnchor;
+      const r1 = Math.min(a.r, opts.r), r2 = Math.max(a.r, opts.r);
+      const c1 = Math.min(a.c, opts.c), c2 = Math.max(a.c, opts.c);
+      ref = Utils.toCellRef(r1, c1) + ':' + Utils.toCellRef(r2, c2);
+    } else {
+      ref = Utils.toCellRef(opts.r, opts.c);
+      this._formulaRefAnchor = { r: opts.r, c: opts.c };
+    }
+
+    if (editor) {
+      const s = editor.selectionStart, e = editor.selectionEnd;
+      const before = editor.value.substring(0, s);
+      const after = editor.value.substring(e);
+      editor.value = before + ref + after;
+      const caret = before.length + ref.length;
+      editor.selectionStart = editor.selectionEnd = caret;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    if (formulaInput) {
+      formulaInput.value = editor ? editor.value : ('=' + ref);
+    }
+
+    return true;
   }
 
 };

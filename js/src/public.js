@@ -106,6 +106,7 @@ export const PublicMixin = {
     if (s && e) {
       this.selection = { r1: s.r, c1: s.c, r2: e.r, c2: e.c };
       this.activeCell = { r: s.r, c: s.c };
+      this.extraSelections = [];
       this._updateSelectionDisplay();
       this._updateFormulaBar();
     }
@@ -619,9 +620,12 @@ export const PublicMixin = {
       var ext0 = sheet.getLastDataExtent();
       for (var rr0 = writeRow; rr0 <= ext0.r; rr0++) {
         for (var cc0 = startCol; cc0 <= ext0.c; cc0++) {
-          if (sheet._data[rr0 + ',' + cc0] !== undefined) sheet.setCell(rr0, cc0, '');
+          var oldKey = sheet._key(rr0, cc0);
+          if (sheet._data[oldKey] !== undefined) delete sheet._data[oldKey];
         }
       }
+      sheet._lastDataRow = -1;
+      sheet._lastDataCol = -1;
     }
 
     // Write new rows

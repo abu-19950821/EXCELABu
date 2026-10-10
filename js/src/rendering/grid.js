@@ -10,6 +10,7 @@ export const RenderingGridMixin = {
   },
 
   _renderSheetTabs() {
+    if (!this.sheetTabsContainer) return;
     this.sheetTabsContainer.innerHTML = '';
     this.sheets.forEach((sheet, index) => {
       var tab = document.createElement('button');
@@ -33,9 +34,19 @@ export const RenderingGridMixin = {
     var colW = GRID.DEFAULT_COL_WIDTH;
     var visibleRows = scrollEl.clientHeight > 0 ? Math.ceil(scrollEl.clientHeight / rowH) : GRID.VISIBLE_ROWS_FALLBACK;
     var visibleCols = scrollEl.clientWidth > GRID.ROW_HEADER_WIDTH ? Math.ceil((scrollEl.clientWidth - GRID.ROW_HEADER_WIDTH) / colW) : GRID.VISIBLE_COLS_FALLBACK;
-    var neededRows = Math.max(last.r + 1 + GRID.EXPAND_BUFFER, visibleRows + GRID.EXPAND_BUFFER);
-    var neededCols = Math.max(last.c + 1 + GRID.EXPAND_BUFFER, visibleCols + GRID.EXPAND_BUFFER);
-    if (sheet.rowCount !== neededRows || sheet.colCount !== neededCols) { sheet.rowCount = neededRows; sheet.colCount = neededCols; }
+    var minRows = Math.max(last.r + 1 + GRID.EXPAND_BUFFER, visibleRows + GRID.EXPAND_BUFFER);
+    var minCols = Math.max(last.c + 1 + GRID.EXPAND_BUFFER, visibleCols + GRID.EXPAND_BUFFER);
+    var changed = false;
+    if (sheet.rowCount < minRows) { sheet.rowCount = minRows; changed = true; }
+    if (sheet.colCount < minCols) { sheet.colCount = minCols; changed = true; }
+    if (this.gridTable && !changed) {
+      var tbody = this.gridTable.querySelector('tbody');
+      if (tbody) {
+        if (tbody.children.length !== sheet.rowCount) changed = true;
+        else if (tbody.children[0] && tbody.children[0].children.length < sheet.colCount + 1) changed = true;
+      }
+    }
+    return changed;
   },
 
   _renderGrid() {
@@ -66,11 +77,17 @@ export const RenderingGridMixin = {
     }
     html += '</tr></thead><tbody>';
 
+    var rowTopOffsets = new Array(rows);
+    var accTop = GRID.COL_HEADER_HEIGHT;
+    for (var ri = 0; ri < rows; ri++) {
+      rowTopOffsets[ri] = accTop;
+      accTop += sheet.getRowHeight(ri);
+    }
+
     for (var r = 0; r < rows; r++) {
       var rowHeight = sheet.getRowHeight(r);
       var isFrozenRow = frozenRow > 0 && r < frozenRow;
-      var frozenRowTop = GRID.COL_HEADER_HEIGHT;
-      for (var fr = 0; fr < r; fr++) { frozenRowTop += sheet.getRowHeight(fr); }
+      var frozenRowTop = rowTopOffsets[r];
       html += '<tr>';
       if (isFrozenRow) {
         html += '<th class="excelabu-row-header" data-row="' + r + '" data-frozen="true" data-frozen-top="' + frozenRowTop + '" ' +
@@ -87,10 +104,9 @@ export const RenderingGridMixin = {
         if (mergeRange && r === mergeRange.r1 && c === mergeRange.c1) {
           var colspan = mergeRange.c2 - mergeRange.c1 + 1;
           var rowspan = mergeRange.r2 - mergeRange.r1 + 1;
-          var totalWidth = 0;
-          for (var mc = mergeRange.c1; mc <= mergeRange.c2; mc++) totalWidth += sheet.getColWidth(mc);
-          var totalHeight = 0;
-          for (var mr = mergeRange.r1; mr <= mergeRange.r2; mr++) totalHeight += sheet.getRowHeight(mr);
+          var mergedSize = sheet.getMergedSize(mergeRange);
+          var totalWidth = mergedSize.width;
+          var totalHeight = mergedSize.height;
           var displayValue = sheet.getCellDisplay(r, c);
           var escapedValue = Utils.escapeHtml(displayValue).replace(/\n/g, '<br>');
           var cell = sheet.getCell(r, c);

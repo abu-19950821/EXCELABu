@@ -602,7 +602,6 @@ svg.excelabu-color-indicator {
 .excelabu-grid td {
   box-sizing: border-box;
   margin: 0;
-  padding: 0;
 }
 
 /* ========== Column Headers ========== */
@@ -722,7 +721,7 @@ svg.excelabu-color-indicator {
   border-bottom: 1px solid var(--excelabu-grid-line);
   height: 24px;
   line-height: normal;
-  padding: 0 1px;
+  padding: 5px 5px;
   font-size: var(--excelabu-font-size);
   cursor: cell;
   box-sizing: border-box;

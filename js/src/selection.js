@@ -227,32 +227,27 @@ export const SelectionMixin = {
       }
     };
 
-    // Highlight main selection
-    if (this.selection) {
-      highlightRange(this.selection.r1, this.selection.c1, this.selection.r2, this.selection.c2);
-
-      for (let c = this.selection.c1; c <= this.selection.c2; c++) {
+    const highlightHeaders = (r1, c1, r2, c2) => {
+      for (let c = c1; c <= c2; c++) {
         const headerEl = this.gridTable.querySelector('.excelabu-col-header[data-col="' + c + '"]');
         if (headerEl) headerEl.classList.add('selected');
       }
-      for (let r = this.selection.r1; r <= this.selection.r2; r++) {
+      for (let r = r1; r <= r2; r++) {
         const headerEl = this.gridTable.querySelector('.excelabu-row-header[data-row="' + r + '"]');
         if (headerEl) headerEl.classList.add('selected');
       }
+    };
+
+    // Highlight main selection
+    if (this.selection) {
+      highlightRange(this.selection.r1, this.selection.c1, this.selection.r2, this.selection.c2);
+      highlightHeaders(this.selection.r1, this.selection.c1, this.selection.r2, this.selection.c2);
     }
 
     // Highlight extra selections (Ctrl+click multi-select)
     for (const extra of this.extraSelections) {
       highlightRange(extra.r1, extra.c1, extra.r2, extra.c2);
-
-      for (let c = extra.c1; c <= extra.c2; c++) {
-        const headerEl = this.gridTable.querySelector('.excelabu-col-header[data-col="' + c + '"]');
-        if (headerEl) headerEl.classList.add('selected');
-      }
-      for (let r = extra.r1; r <= extra.r2; r++) {
-        const headerEl = this.gridTable.querySelector('.excelabu-row-header[data-row="' + r + '"]');
-        if (headerEl) headerEl.classList.add('selected');
-      }
+      highlightHeaders(extra.r1, extra.c1, extra.r2, extra.c2);
     }
 
     // Active cell — uses _cellDOM cache for O(1)
@@ -293,37 +288,40 @@ export const SelectionMixin = {
       var firstCell = this._cellDOM ? this._cellDOM[sel.r1 + ',' + sel.c1] : null;
       var lastCell  = this._cellDOM ? this._cellDOM[sel.r2 + ',' + sel.c2] : null;
 
-      // Selection that spans frozen AND non-frozen regions uses manual calculation
-      // because a single rectangle can't correctly cover sticky+vsticky+scrollable mixing.
       var spansFrozenRow = this._frozenRow && sel.r1 < this._frozenRow && sel.r2 >= this._frozenRow;
       var spansFrozenCol = this._frozenCol && sel.c1 < this._frozenCol && sel.c2 >= this._frozenCol;
 
-      if (firstCell && lastCell && this.gridScroll && !spansFrozenRow && !spansFrozenCol) {
+      if (this.gridScroll && !spansFrozenRow && !spansFrozenCol) {
         var sr = this.gridScroll.getBoundingClientRect();
-        var r1 = firstCell.getBoundingClientRect();
-        var r2 = lastCell.getBoundingClientRect();
-
-        // Convert visual (viewport) coordinates to scroll-content coordinates.
-        // For frozen cells: visual pos already excludes scroll; adding scroll
-        // compensates for the overlay being in scroll-content space.
-        // For non-frozen cells: visual pos includes scroll offset; adding scroll
-        // cancels it out, yielding the correct content position.
         var ox = -sr.left + this.gridScroll.scrollLeft;
         var oy = -sr.top  + this.gridScroll.scrollTop;
 
-        this.selectionOverlay.style.left   = (r1.left + ox) + 'px';
-        this.selectionOverlay.style.top    = (r1.top  + oy) + 'px';
-        this.selectionOverlay.style.width  = (r2.right  - r1.left) + 'px';
-        this.selectionOverlay.style.height = (r2.bottom - r1.top)  + 'px';
-        this.selectionOverlay.style.display = 'block';
-        return;
+        if (firstCell && lastCell) {
+          var r1 = firstCell.getBoundingClientRect();
+          var r2 = lastCell.getBoundingClientRect();
+          this.selectionOverlay.style.left   = (r1.left + ox) + 'px';
+          this.selectionOverlay.style.top    = (r1.top  + oy) + 'px';
+          this.selectionOverlay.style.width  = (r2.right  - r1.left) + 'px';
+          this.selectionOverlay.style.height = (r2.bottom - r1.top)  + 'px';
+          this.selectionOverlay.style.display = 'block';
+          return;
+        }
+
+        if (firstCell) {
+          var rm = firstCell.getBoundingClientRect();
+          this.selectionOverlay.style.left   = (rm.left + ox) + 'px';
+          this.selectionOverlay.style.top    = (rm.top  + oy) + 'px';
+          this.selectionOverlay.style.width  = rm.width  + 'px';
+          this.selectionOverlay.style.height = rm.height + 'px';
+          this.selectionOverlay.style.display = 'block';
+          return;
+        }
       }
 
       // Fallback manual calculation for mixed frozen/non-frozen or missing DOM
       var sheet = this.activeSheet;
-      var ftop = GRID.COL_HEADER_HEIGHT, fleft = GRID.ROW_HEADER_WIDTH;
-      for (var r = 0; r < sel.r1; r++) ftop  += sheet.getRowHeight(r);
-      for (var c = 0; c < sel.c1; c++) fleft += sheet.getColWidth(c);
+      var ftop = sheet.getRowTop(sel.r1);
+      var fleft = sheet.getColLeft(sel.c1);
       var fw = 0, fh = 0;
       for (var rr = sel.r1; rr <= sel.r2; rr++) fh += sheet.getRowHeight(rr);
       for (var cc = sel.c1; cc <= sel.c2; cc++) fw += sheet.getColWidth(cc);

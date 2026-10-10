@@ -17,7 +17,51 @@ export const DEFAULT_OPTIONS = {
   cols: 26,
   defaultColWidth: 100,
   defaultRowHeight: 24,
-  sheetName: 'Sheet1'
+  sheetName: 'Sheet1',
+  ui: {
+    menuBar: true,
+    toolbar: true,
+    formulaBar: true,
+    sheetTabs: true,
+    statusBar: true,
+    contextMenu: true,
+    toolbarItems: {
+      clipboard: true,
+      fontFamily: true,
+      fontSize: true,
+      fontColor: true,
+      fillColor: true,
+      bold: true,
+      italic: true,
+      underline: true,
+      alignLeft: true,
+      alignCenter: true,
+      alignRight: true,
+      alignTop: true,
+      alignMiddle: true,
+      alignBottom: true,
+      wrapText: true,
+      sort: true,
+      find: true,
+      borders: true,
+      merge: true,
+      rowColOps: true,
+      printArea: true,
+      freeze: true,
+      conditionalFormat: true
+    },
+    menuItems: {
+      save: true,
+      importFile: true,
+      exportFile: true,
+      print: true,
+      printPreview: true,
+      margins: true,
+      undo: true,
+      redo: true,
+      toggleLang: true
+    }
+  }
 };
 
 export const GRID = {

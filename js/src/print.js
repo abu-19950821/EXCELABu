@@ -137,10 +137,8 @@ export const PrintMixin = {
     var pw = Math.floor(this._getPrintableWidth() - PRINT.PAGE_WIDTH_PAD);
     var ph = Math.floor(this._getPrintableHeight());
 
-    var totalW = GRID.ROW_HEADER_WIDTH;
-    for (var c = 0; c < cols; c++) totalW += sheet.getColWidth(c);
-    var totalH = GRID.COL_HEADER_HEIGHT;
-    for (var r = 0; r < rows; r++) totalH += sheet.getRowHeight(r);
+    var totalW = sheet.getColLeft(cols);
+    var totalH = sheet.getRowTop(rows);
 
     var pages = this._calculatePageGroups(cols, rows, pw, ph);
     var colPages = pages.colPages;

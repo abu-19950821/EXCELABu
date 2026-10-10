@@ -1,10 +1,12 @@
 import { Utils } from './utils.js?v=3';
 
 import { UI } from '../../config/constants.js?v=1';
+import { GRID } from '../../config/theme.js?v=3';
 
 export const ClipboardMixin = {
   // ======================== Context Menu ========================
   _onContextMenu(e) {
+    if (!this.contextMenu) return;
     e.preventDefault();
     this._hideContextMenu();
 
@@ -50,6 +52,7 @@ export const ClipboardMixin = {
   },
 
   _hideContextMenu() {
+    if (!this.contextMenu) return;
     this.contextMenu.style.display = 'none';
   },
 
@@ -148,23 +151,21 @@ export const ClipboardMixin = {
 
     // Paste data
     const cb = this.clipboard;
+    sheet._autoExpandTo(ac.r + cb.rows + GRID.EXPAND_BUFFER, ac.c + cb.cols + GRID.EXPAND_BUFFER);
     for (let dr = 0; dr < cb.rows; dr++) {
       for (let dc = 0; dc < cb.cols; dc++) {
         const targetR = ac.r + dr;
         const targetC = ac.c + dc;
-        if (targetR < sheet.rowCount && targetC < sheet.colCount) {
-          const srcCell = cb.data[dr][dc];
-          if (srcCell.formula) {
-            sheet.setCellFormula(targetR, targetC, srcCell.formula);
-          } else if (srcCell.value != null) {
-            sheet.setCell(targetR, targetC, srcCell.value);
-          }
-          // Copy source cell style
-          if (srcCell._style) {
-            var key = sheet._key(targetR, targetC);
-            if (sheet._data[key]) {
-              sheet._data[key]._style = Utils.deepClone(srcCell._style);
-            }
+        const srcCell = cb.data[dr][dc];
+        if (srcCell.formula) {
+          sheet.setCellFormula(targetR, targetC, srcCell.formula);
+        } else if (srcCell.value != null) {
+          sheet.setCell(targetR, targetC, srcCell.value);
+        }
+        if (srcCell._style) {
+          var key = sheet._key(targetR, targetC);
+          if (sheet._data[key]) {
+            sheet._data[key]._style = Utils.deepClone(srcCell._style);
           }
         }
       }
@@ -192,16 +193,9 @@ export const ClipboardMixin = {
     this.copyIndicator.style.left = (cellRect.left - wrapperRect.left + this.gridScroll.scrollLeft) + 'px';
     this.copyIndicator.style.top = (cellRect.top - wrapperRect.top + this.gridScroll.scrollTop) + 'px';
 
-    // Calculate total width and height of selection
     const sheet = this.activeSheet;
-    let totalWidth = 0;
-    for (let c = sel.c1; c <= sel.c2; c++) {
-      totalWidth += sheet.getColWidth(c);
-    }
-    let totalHeight = 0;
-    for (let r = sel.r1; r <= sel.r2; r++) {
-      totalHeight += sheet.getRowHeight(r);
-    }
+    var totalWidth = sheet.getColLeft(sel.c2 + 1) - sheet.getColLeft(sel.c1);
+    var totalHeight = sheet.getRowTop(sel.r2 + 1) - sheet.getRowTop(sel.r1);
 
     this.copyIndicator.style.width = totalWidth + 'px';
     this.copyIndicator.style.height = totalHeight + 'px';

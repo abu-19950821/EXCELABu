@@ -8,9 +8,10 @@ export const CoreBindEventsMixin = {
   _commitEditingBeforeAction() {
     if (this.editingCell) {
       var r = this.editingCell.r, c = this.editingCell.c;
-      var val = this.cellEditor ? this.cellEditor.value : this.formulaInput.value;
+      var val = this.cellEditor ? this.cellEditor.value : (this.formulaInput ? this.formulaInput.value : '');
       this._removeCellEditor();
       this.editingCell = null;
+      this._formulaRefAnchor = null;
       this._pushUndo();
       this.activeSheet.setCell(r, c, val);
       this._updateFormulaBar();
@@ -25,6 +26,7 @@ export const CoreBindEventsMixin = {
       fontColorInput.addEventListener("input", function(e) {
         this._commitEditingBeforeAction();
         this._previewFontColor(e.target.value);
+        this._pushUndo();
         var cells = this._getSelectedCells();
         var color = e.target.value;
         var finalColor = color === DEFAULT_COLORS.font ? null : color;
@@ -35,12 +37,14 @@ export const CoreBindEventsMixin = {
           if (finalColor === null) delete sheet._data[sheet._key(cr, cc)]._style.color;
           else sheet._data[sheet._key(cr, cc)]._style.color = finalColor;
         }
+        this._renderGrid();
       }.bind(this));
     }
     if (bgColorInput) {
       bgColorInput.addEventListener("input", function(e) {
         this._commitEditingBeforeAction();
         this._previewBgColor(e.target.value);
+        this._pushUndo();
         var cells = this._getSelectedCells();
         var color = e.target.value;
         var finalBgColor = (color === DEFAULT_COLORS.background || color === "#FFFFFF") ? null : color;
@@ -51,6 +55,7 @@ export const CoreBindEventsMixin = {
           if (finalBgColor === null) delete sheet._data[sheet._key(cr, cc)]._style.bgColor;
           else sheet._data[sheet._key(cr, cc)]._style.bgColor = finalBgColor;
         }
+        this._renderGrid();
       }.bind(this));
     }
     this.container.addEventListener("click", function(e) {
@@ -69,21 +74,23 @@ export const CoreBindEventsMixin = {
         this._setFontSize(parseInt(el.value, 10));
       }
     }.bind(this));
-    this.formulaInput.addEventListener("keydown", function(e) { this._onFormulaKeydown(e); }.bind(this));
-    this.formulaInput.addEventListener("input", function() { this._onFormulaInput(); }.bind(this));
-    this.formulaInput.addEventListener("blur", function() {
-      if (this._formulaBarDirty) {
-        this._formulaBarDirty = false;
-        var ac = this.activeCell;
-        if (ac && !this.editingCell) {
-          this._pushUndo();
-          this.activeSheet.setCell(ac.r, ac.c, this.formulaInput.value);
-          this._renderGrid();
-          this._updateFormulaBar();
-          this._setStatus("Ready");
+    if (this.formulaInput) {
+      this.formulaInput.addEventListener("keydown", function(e) { this._onFormulaKeydown(e); }.bind(this));
+      this.formulaInput.addEventListener("input", function() { this._onFormulaInput(); }.bind(this));
+      this.formulaInput.addEventListener("blur", function() {
+        if (this._formulaBarDirty) {
+          this._formulaBarDirty = false;
+          var ac = this.activeCell;
+          if (ac && !this.editingCell) {
+            this._pushUndo();
+            this.activeSheet.setCell(ac.r, ac.c, this.formulaInput.value);
+            this._renderGrid();
+            this._updateFormulaBar();
+            this._setStatus("Ready");
+          }
         }
-      }
-    }.bind(this));
+      }.bind(this));
+    }
     this.gridTable.addEventListener("mousedown", this._boundOnGridMouseDown = function(e) { this._onGridMouseDown(e); }.bind(this));
     this.gridTable.addEventListener("dblclick", this._boundOnGridDblClick = function(e) { this._onGridDblClick(e); }.bind(this));
     document.addEventListener("mousemove", this._boundOnMouseMove = function(e) { this._onMouseMove(e); }.bind(this));
@@ -92,30 +99,35 @@ export const CoreBindEventsMixin = {
     this.gridScroll.addEventListener("scroll", this._boundOnScroll = function() { this._onScroll(); }.bind(this));
     this.gridTable.addEventListener("contextmenu", this._boundOnContextMenu = function(e) { this._onContextMenu(e); }.bind(this));
     document.addEventListener("click", this._boundHideContextMenu = function(e) { this._hideContextMenu(e); }.bind(this));
-    this.sheetTabsContainer.addEventListener("click", function(e) {
-      var tab = e.target.closest(".excelabu-sheet-tab");
-      if (tab && !e.target.closest(".excelabu-add-sheet")) {
-        var index = parseInt(tab.dataset.index, 10);
-        if (!isNaN(index)) this.switchSheet(index);
-      }
-      if (e.target.closest(".excelabu-add-sheet")) this.addSheet("Sheet" + (this.sheets.length + 1));
-    }.bind(this));
-    this.sheetTabsContainer.addEventListener("dblclick", function(e) {
-      var tab = e.target.closest(".excelabu-sheet-tab");
-      if (tab) {
-        var index = parseInt(tab.dataset.index, 10);
-        if (!isNaN(index)) this._renameSheetPrompt(index);
-      }
-    }.bind(this));
-    this.container.querySelector(".excelabu-border-menu").addEventListener("mousedown", function(e) {
-      var item = e.target.closest("[data-border]");
-      if (item) {
-        e.preventDefault();
-        e.stopPropagation();
-        this._applyBorder(item.dataset.border);
-        this._closeBorderMenu();
-      }
-    }.bind(this));
+    if (this.sheetTabsContainer) {
+      this.sheetTabsContainer.addEventListener("click", function(e) {
+        var tab = e.target.closest(".excelabu-sheet-tab");
+        if (tab && !e.target.closest(".excelabu-add-sheet")) {
+          var index = parseInt(tab.dataset.index, 10);
+          if (!isNaN(index)) this.switchSheet(index);
+        }
+        if (e.target.closest(".excelabu-add-sheet")) this.addSheet("Sheet" + (this.sheets.length + 1));
+      }.bind(this));
+      this.sheetTabsContainer.addEventListener("dblclick", function(e) {
+        var tab = e.target.closest(".excelabu-sheet-tab");
+        if (tab) {
+          var index = parseInt(tab.dataset.index, 10);
+          if (!isNaN(index)) this._renameSheetPrompt(index);
+        }
+      }.bind(this));
+    }
+    var borderMenu = this.container.querySelector(".excelabu-border-menu");
+    if (borderMenu) {
+      borderMenu.addEventListener("mousedown", function(e) {
+        var item = e.target.closest("[data-border]");
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          this._applyBorder(item.dataset.border);
+          this._closeBorderMenu();
+        }
+      }.bind(this));
+    }
     document.addEventListener("mousedown", function(e) {
       var group = this.container.querySelector(".excelabu-border-group");
       if (group && !group.contains(e.target)) this._closeBorderMenu();

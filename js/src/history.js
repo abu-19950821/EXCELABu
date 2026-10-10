@@ -38,6 +38,7 @@ export const HistoryMixin = {
     this.activeSheet.rowHeights = snapshot.rowHeights;
     this.activeSheet.mergedCells = snapshot.mergedCells;
     this.activeSheet._rebuildMergeIndex();
+    this.activeSheet._invalidateLayoutCache();
     this.activeSheet.rowCount = snapshot.rowCount;
     this.activeSheet.colCount = snapshot.colCount;
   },

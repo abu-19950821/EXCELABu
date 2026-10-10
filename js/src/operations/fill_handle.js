@@ -87,7 +87,7 @@ export const OperationsFillHandleMixin = {
     if (!this.isFillDragging) return;
     this.isFillDragging = false;
     this._removeFillPreview();
-    if (!this._fillTargetR1 && this._fillTargetR1 !== 0 && !this._fillTargetR2 && this._fillTargetR2 !== 0) { this._setStatus('Ready'); return; }
+    if (this._fillTargetR1 == null || this._fillTargetC1 == null || this._fillTargetR2 == null || this._fillTargetC2 == null) { this._setStatus('Ready'); return; }
     this._pushUndo();
     var sheet = this.activeSheet;
     var srcR1 = this._fillSourceR1, srcC1 = this._fillSourceC1;
@@ -106,8 +106,8 @@ export const OperationsFillHandleMixin = {
       for (var sr = srcR1; sr <= srcR2; sr++) {
         var ck = sheet._data[sheet._key(sr, srcC1)];
         var v = ck ? ck.value : null;
-        if (typeof v !== 'number' || isNaN(v)) { allNum = false; break; }
-        fColVals.push(v);
+        if (v === null || v === '' || isNaN(Number(v))) { allNum = false; break; }
+        fColVals.push(Number(v));
       }
       if (allNum && fColVals.length >= 2) {
         var d = fColVals[1] - fColVals[0];
@@ -122,8 +122,8 @@ export const OperationsFillHandleMixin = {
       for (var sc = srcC1; sc <= srcC2; sc++) {
         var ckH = sheet._data[sheet._key(srcR1, sc)];
         var vH = ckH ? ckH.value : null;
-        if (typeof vH !== 'number' || isNaN(vH)) { allNumH = false; break; }
-        fRowVals.push(vH);
+        if (vH === null || vH === '' || isNaN(Number(vH))) { allNumH = false; break; }
+        fRowVals.push(Number(vH));
       }
       if (allNumH && fRowVals.length >= 2) {
         var dH = fRowVals[1] - fRowVals[0];
@@ -146,6 +146,7 @@ export const OperationsFillHandleMixin = {
           else if (isSingleCell && typeof srcCell.value === 'number' && !isNaN(srcCell.value)) {
             if (isVertical) newVal = srcCell.value + (r - srcR2);
             else if (isHorizontal) newVal = srcCell.value + (c - srcC2);
+            else { newVal = srcCell.value + Math.max(r - srcR2, c - srcC2); }
           }
           sheet.setCell(r, c, newVal);
           if (srcCell._style) {
@@ -197,9 +198,8 @@ export const OperationsFillHandleMixin = {
       return;
     }
     var sheet = this.activeSheet;
-    var top = GRID.COL_HEADER_HEIGHT, left = GRID.ROW_HEADER_WIDTH;
-    for (var r = 0; r < tgR1; r++) top += sheet.getRowHeight(r);
-    for (var c = 0; c < tgC1; c++) left += sheet.getColWidth(c);
+    var top = sheet.getRowTop(tgR1);
+    var left = sheet.getColLeft(tgC1);
     var w = 0, h = 0;
     for (var rr = tgR1; rr <= tgR2; rr++) h += sheet.getRowHeight(rr);
     for (var cc = tgC1; cc <= tgC2; cc++) w += sheet.getColWidth(cc);
