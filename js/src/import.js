@@ -379,7 +379,7 @@ export const ImportMixin = {
         }
 
         if (cell.formula) {
-          row.push(cell.formula);
+          row.push({ f: cell.formula });
         } else {
           var v = cell.value !== undefined ? cell.value : null;
           row.push(v);
