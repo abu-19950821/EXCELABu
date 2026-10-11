@@ -68,7 +68,9 @@ export const RenderingGridMixin = {
     for (var c = 0; c < cols; c++) {
       var width = sheet.getColWidth(c);
       var isColFrozen = frozenCol > 0 && c < frozenCol;
+      var isLastFrozenCol = frozenCol > 0 && c === frozenCol - 1;
       var colHeadExtra = isColFrozen ? 'left:' + colLefts[c] + 'px;z-index:' + (GRID.ZINDEX.CORNER - 1) + ';' : 'z-index:' + GRID.ZINDEX.COL_HEADER + ';';
+      if (isLastFrozenCol) colHeadExtra += 'box-shadow:2px 0 3px -2px rgba(0,0,0,0.10);';
       html += '<th class="excelabu-col-header' + (this._sortCol === c ? ' excelabu-col-header-sorted' : '') + '" data-col="' + c + '" ' +
         'style="position:sticky;top:0;' + colHeadExtra + 'width:' + width + 'px;max-width:' + width + 'px;">' +
         Utils.colToLetter(c) +
@@ -87,8 +89,9 @@ export const RenderingGridMixin = {
     for (var r = 0; r < rows; r++) {
       var rowHeight = sheet.getRowHeight(r);
       var isFrozenRow = frozenRow > 0 && r < frozenRow;
+      var isLastFrozenRow = frozenRow > 0 && r === frozenRow - 1;
       var frozenRowTop = rowTopOffsets[r];
-      html += '<tr>';
+      html += '<tr style="height:' + rowHeight + 'px;">';
       if (isFrozenRow) {
         html += '<th class="excelabu-row-header" data-row="' + r + '" data-frozen="true" data-frozen-top="' + frozenRowTop + '" ' +
           'style="position:sticky;top:' + frozenRowTop + 'px;left:0px;z-index:' + GRID.ZINDEX.CORNER +
@@ -112,8 +115,14 @@ export const RenderingGridMixin = {
           var cell = sheet.getCell(r, c);
           var styleAttr = this._buildCellStyleAttr(cell, totalWidth, totalHeight, r, c);
           var isFrozenColM = frozenCol > 0 && c < frozenCol;
+          var isLastFrozenColM = frozenCol > 0 && c === frozenCol - 1;
+          var shadowM = '';
+          if (isLastFrozenRow && isLastFrozenColM) shadowM = 'box-shadow:0 2px 3px -2px rgba(0,0,0,0.10),2px 0 3px -2px rgba(0,0,0,0.10);';
+          else if (isLastFrozenRow) shadowM = 'box-shadow:0 2px 3px -2px rgba(0,0,0,0.10);';
+          else if (isLastFrozenColM) shadowM = 'box-shadow:2px 0 3px -2px rgba(0,0,0,0.10);';
           var attrsM = this._frozenCellAttrs(isFrozenRow, isFrozenColM, frozenRowTop, colLefts[c]);
           var finalStyleAttrM = attrsM.style ? styleAttr.replace('style="', 'style="' + attrsM.style) : styleAttr;
+          if (shadowM) finalStyleAttrM = finalStyleAttrM.replace('style="', 'style="' + shadowM);
           html += '<td class="excelabu-cell' + attrsM.cls + '" data-row="' + r + '" data-col="' + c + '" ' +
             'colspan="' + colspan + '" rowspan="' + rowspan + '" ' + attrsM.dataAttrs + ' ' + finalStyleAttrM + '>' + escapedValue + '</td>';
           c = mergeRange.c2 + 1;
@@ -124,8 +133,14 @@ export const RenderingGridMixin = {
           var cell = sheet.getCell(r, c);
           var styleAttr = this._buildCellStyleAttr(cell, width, rowHeight, r, c);
           var isFrozenCol = frozenCol > 0 && c < frozenCol;
+          var isLastFrozenCol = frozenCol > 0 && c === frozenCol - 1;
+          var shadow = '';
+          if (isLastFrozenRow && isLastFrozenCol) shadow = 'box-shadow:0 2px 3px -2px rgba(0,0,0,0.10),2px 0 3px -2px rgba(0,0,0,0.10);';
+          else if (isLastFrozenRow) shadow = 'box-shadow:0 2px 3px -2px rgba(0,0,0,0.10);';
+          else if (isLastFrozenCol) shadow = 'box-shadow:2px 0 3px -2px rgba(0,0,0,0.10);';
           var attrs = this._frozenCellAttrs(isFrozenRow, isFrozenCol, frozenRowTop, colLefts[c]);
           var finalStyleAttr = attrs.style ? styleAttr.replace('style="', 'style="' + attrs.style) : styleAttr;
+          if (shadow) finalStyleAttr = finalStyleAttr.replace('style="', 'style="' + shadow);
           html += '<td class="excelabu-cell' + attrs.cls + '" data-row="' + r + '" data-col="' + c + '" ' + attrs.dataAttrs + ' ' + finalStyleAttr + '>' + escapedValue + '</td>';
           c++;
         }
@@ -133,14 +148,25 @@ export const RenderingGridMixin = {
       html += '</tr>';
     }
     html += '</tbody>';
-    // iPad/tablet Safari: force the fixed-layout table to its full content width so
-    // columns are not squeezed into the container and a horizontal scrollbar appears.
     this.gridTable.style.width = accLeft + 'px';
     this.gridTable.style.minWidth = accLeft + 'px';
     this.gridTable.innerHTML = html;
     this._cellDOM = {};
     var cells = this.gridTable.querySelectorAll('.excelabu-cell');
     for (var i = 0; i < cells.length; i++) { var el = cells[i]; this._cellDOM[el.dataset.row + ',' + el.dataset.col] = el; }
-    this._syncFrozenOverlay();
+
+    var fr = frozenRow;
+    if (fr > 0) {
+      var gridRect = this.gridTable.parentNode.getBoundingClientRect();
+      var tbodyRows = this.gridTable.querySelector('tbody').children;
+      for (var ri = 0; ri < Math.min(fr, tbodyRows.length); ri++) {
+        var actualTop = tbodyRows[ri].getBoundingClientRect().top - gridRect.top;
+        var frozenCells = tbodyRows[ri].querySelectorAll('[data-frozen="true"]');
+        for (var fi = 0; fi < frozenCells.length; fi++) {
+          frozenCells[fi].style.top = actualTop + 'px';
+          frozenCells[fi].dataset.frozenTop = actualTop;
+        }
+      }
+    }
   }
 };

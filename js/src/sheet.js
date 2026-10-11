@@ -29,17 +29,19 @@ import { GRID } from '../../config/theme.js?v=3';
 
     _buildRowTopCache() {
       var n = this.rowCount;
-      var cache = new Array(n);
+      var cache = new Array(n + 1);
       var acc = GRID.COL_HEADER_HEIGHT;
       for (var i = 0; i < n; i++) { cache[i] = acc; acc += this.getRowHeight(i); }
+      cache[n] = acc;
       this._rowTopCache = cache;
     }
 
     _buildColLeftCache() {
       var n = this.colCount;
-      var cache = new Array(n);
+      var cache = new Array(n + 1);
       var acc = GRID.ROW_HEADER_WIDTH;
       for (var i = 0; i < n; i++) { cache[i] = acc; acc += this.getColWidth(i); }
+      cache[n] = acc;
       this._colLeftCache = cache;
     }
 

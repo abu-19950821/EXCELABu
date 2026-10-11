@@ -137,53 +137,55 @@ export const PrintMixin = {
     var pw = Math.floor(this._getPrintableWidth() - PRINT.PAGE_WIDTH_PAD);
     var ph = Math.floor(this._getPrintableHeight());
 
-    var totalW = sheet.getColLeft(cols);
-    var totalH = sheet.getRowTop(rows);
-
     var pages = this._calculatePageGroups(cols, rows, pw, ph);
     var colPages = pages.colPages;
     var rowPages = pages.rowPages;
 
-    var container = document.createElement('div');
-    container.className = 'excelabu-page-break-overlay';
-    container.style.width = totalW + 'px';
-    container.style.height = totalH + 'px';
+    var overlay = document.createElement('div');
+    overlay.className = 'excelabu-page-break-overlay';
 
     var LINE_COLOR = PRINT.PAGE_BREAK_COLOR;
+    var tableRect = this.gridTable.getBoundingClientRect();
 
-    // ── Vertical break lines ──
-    var xPos = GRID.ROW_HEADER_WIDTH;
+    var tbody = this.gridTable.querySelector('tbody');
+    var firstRow = tbody ? tbody.querySelector('tr') : null;
+
     for (var cp = 0; cp < colPages.length - 1; cp++) {
-      xPos += colPages[cp].x;
-      var vLine = document.createElement('div');
-      vLine.className = 'excelabu-page-break-line excelabu-page-break-v';
-      vLine.style.cssText = 'position:absolute;top:0;bottom:0;left:' + xPos + 'px;width:0;border-left:2px dashed ' + LINE_COLOR + ';';
-      container.appendChild(vLine);
+      var endCol = colPages[cp].end;
+      var cell = firstRow ? firstRow.querySelector('td[data-col="' + endCol + '"]') : null;
+      if (cell) {
+        var tableX = cell.getBoundingClientRect().right - tableRect.left;
+        var vLine = document.createElement('div');
+        vLine.className = 'excelabu-page-break-v';
+        vLine.style.cssText = 'border-left:2px dashed ' + LINE_COLOR + ';left:' + tableX + 'px;';
+        overlay.appendChild(vLine);
+      }
     }
 
-    // ── Horizontal break lines ──
-    var yPos = GRID.COL_HEADER_HEIGHT;
     for (var rp = 0; rp < rowPages.length - 1; rp++) {
-      yPos += rowPages[rp].y;
-      var hLine = document.createElement('div');
-      hLine.className = 'excelabu-page-break-line excelabu-page-break-h';
-      hLine.style.cssText = 'position:absolute;left:0;right:0;top:' + yPos + 'px;height:0;border-top:2px dashed ' + LINE_COLOR + ';';
-      container.appendChild(hLine);
+      var endRow = rowPages[rp].end;
+      var row = tbody ? tbody.children[endRow] : null;
+      if (row && row.tagName === 'TR') {
+        var cell2 = row.querySelector('td');
+        if (cell2) {
+          var tableY = cell2.getBoundingClientRect().bottom - tableRect.top;
+          var hLine = document.createElement('div');
+          hLine.className = 'excelabu-page-break-h';
+          hLine.style.cssText = 'border-top:2px dashed ' + LINE_COLOR + ';top:' + tableY + 'px;';
+          overlay.appendChild(hLine);
+        }
+      }
     }
 
-    var hLineEnd = document.createElement('div');
-    hLineEnd.className = 'excelabu-page-break-line excelabu-page-break-h';
-    hLineEnd.style.cssText = 'position:absolute;left:0;right:0;top:' + totalH + 'px;height:0;border-top:2px dashed ' + LINE_COLOR + ';';
-    container.appendChild(hLineEnd);
-
-    this.gridScroll.appendChild(container);
+    this._pageBreakOverlay = overlay;
+    this.gridTable.appendChild(overlay);
   },
 
   _clearPageBreakLines() {
-    var all = this.gridScroll.querySelectorAll('.excelabu-page-break-overlay');
-    for (var i = 0; i < all.length; i++) {
-      all[i].remove();
+    if (this._pageBreakOverlay) {
+      this._pageBreakOverlay.remove();
     }
+    this._pageBreakOverlay = null;
   },
 
   _doPrint(previewOnly) {

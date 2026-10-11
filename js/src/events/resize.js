@@ -11,7 +11,8 @@ export const EventsResizeMixin = {
       type: 'col',
       index: c,
       startSize: currentWidth,
-      startX: -1
+      startX: -1,
+      tableStartWidth: parseFloat(this.gridTable.style.width)
     };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
@@ -58,6 +59,11 @@ export const EventsResizeMixin = {
           cells[i].style.maxWidth = newWidth + 'px';
         }
 
+        const actualColDelta = newWidth - self.resizing.startSize;
+        self.gridTable.style.width = (self.resizing.tableStartWidth + actualColDelta) + 'px';
+        self.gridTable.style.minWidth = (self.resizing.tableStartWidth + actualColDelta) + 'px';
+
+        self._syncFrozenColLefts();
         self._updateSelectionDisplay();
       } else if (self.resizing.type === 'row') {
         if (self.resizing.startY === -1) {
@@ -69,10 +75,14 @@ export const EventsResizeMixin = {
         self.activeSheet.setRowHeight(self.resizing.index, newHeight);
 
         const cells = self.gridTable.querySelectorAll('[data-row="' + self.resizing.index + '"]');
+        if (cells.length > 0) {
+          cells[0].parentNode.style.height = newHeight + 'px';
+        }
         for (let i = 0; i < cells.length; i++) {
           cells[i].style.height = newHeight + 'px';
         }
 
+        self._syncFrozenRowTops();
         self._updateSelectionDisplay();
       }
     });

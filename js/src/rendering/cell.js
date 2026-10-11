@@ -1,6 +1,6 @@
 import { Utils } from '../utils.js?v=3';
 import { getFontFallback } from '../../../config/fonts.js?v=1';
-import { BORDER_WIDTHS, DEFAULT_COLORS, COLOR_REGEX } from '../../../config/theme.js?v=2';
+import { BORDER_WIDTHS, DEFAULT_COLORS, COLOR_REGEX, GRID } from '../../../config/theme.js?v=2';
 
 export const RenderingCellMixin = {
   /** Track recursion depth for _renderCell to prevent infinite loops */
@@ -69,7 +69,6 @@ export const RenderingCellMixin = {
       self._scrollRAF = null;
       self.scrollTop = self.gridScroll.scrollTop;
       self.scrollLeft = self.gridScroll.scrollLeft;
-      self._updateFrozenOverlayTransforms();
       self._updateSelectionOverlay();
     });
   },

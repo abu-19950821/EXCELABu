@@ -1,4 +1,5 @@
 ﻿import { DEFAULT_COLORS } from '../../../config/theme.js?v=2';
+import { DEFAULT_FONT_SIZE } from '../../../config/fonts.js?v=1';
 
 export const OperationsShareMixin = {
   /** Cache toolbar DOM references after first render */
@@ -87,6 +88,7 @@ export const OperationsShareMixin = {
     if (els.fontNameSel && style.fontName) els.fontNameSel.value = style.fontName;
     else if (els.fontNameSel) els.fontNameSel.selectedIndex = 0;
     if (els.fontSizeSel && style.fontSize) els.fontSizeSel.value = String(style.fontSize);
+    else if (els.fontSizeSel) els.fontSizeSel.value = String(DEFAULT_FONT_SIZE);
     if (els.fontColorInput) els.fontColorInput.value = style.color || DEFAULT_COLORS.font;
     if (els.bgColorInput) els.bgColorInput.value = style.bgColor || DEFAULT_COLORS.background;
     if (els.alignLeft) els.alignLeft.classList.toggle('active', style.hAlign === 'left');

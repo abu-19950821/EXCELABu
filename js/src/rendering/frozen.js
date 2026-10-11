@@ -25,30 +25,45 @@ export const RenderingFrozenMixin = {
     return { cls: cls, dataAttrs: ' data-frozen="true" data-frozen-top="' + frozenRowTop + '" data-frozen-left="' + colLeft + '"', style: style };
   },
 
-  /**
-   * Frozen cells use native CSS position:sticky in the table.
-   * No cloning is needed — the overlay is just cleaned up.
-   */
-  _syncFrozenOverlay() {
-    var overlays = ['_frozenBothOverlay', '_frozenColOverlay', '_frozenRowOverlay'];
-    for (var oi = 0; oi < overlays.length; oi++) {
-      if (this[overlays[oi]]) this[overlays[oi]].style.display = 'none';
+  _syncFrozenRowTops() {
+    var fr = this._frozenRow;
+    if (fr == null || fr <= 0) return;
+    var gridRect = this.gridTable.parentNode.getBoundingClientRect();
+    var tbody = this.gridTable.querySelector('tbody');
+    if (!tbody) return;
+    var rows = tbody.children;
+    for (var r = 0; r < Math.min(fr, rows.length); r++) {
+      var actualTop = rows[r].getBoundingClientRect().top - gridRect.top;
+      var frozenCells = rows[r].querySelectorAll('[data-frozen="true"]');
+      for (var i = 0; i < frozenCells.length; i++) {
+        frozenCells[i].style.top = actualTop + 'px';
+        frozenCells[i].dataset.frozenTop = actualTop;
+      }
     }
   },
 
-  _updateFrozenOverlayTransforms() {
-    var sl = this.gridScroll.scrollLeft;
-    var st = this.gridScroll.scrollTop;
-    if (this._frozenBothOverlay && this._frozenBothOverlay.style.display !== 'none') {
-      var tx = (this._frozenCol != null) ? sl : 0;
-      var ty = (this._frozenRow != null) ? st : 0;
-      this._frozenBothOverlay.style.transform = 'translate(' + tx + 'px,' + ty + 'px)';
+  _syncFrozenColLefts() {
+    var fc = this._frozenCol;
+    if (fc == null || fc <= 0) return;
+    var sheet = this.activeSheet;
+    var colLefts = [];
+    var accLeft = GRID.ROW_HEADER_WIDTH;
+    for (var c = 0; c < sheet.colCount; c++) {
+      colLefts[c] = accLeft;
+      accLeft += sheet.getColWidth(c);
     }
-    if (this._frozenColOverlay && this._frozenColOverlay.style.display !== 'none') {
-      this._frozenColOverlay.style.transform = 'translate(' + sl + 'px, 0px)';
+    for (var c = 0; c < fc; c++) {
+      var headerCell = this.gridTable.querySelector('.excelabu-col-header[data-col="' + c + '"]');
+      if (headerCell) headerCell.style.left = colLefts[c] + 'px';
     }
-    if (this._frozenRowOverlay && this._frozenRowOverlay.style.display !== 'none') {
-      this._frozenRowOverlay.style.transform = 'translate(0px, ' + st + 'px)';
+    var frozenCells = this.gridTable.querySelectorAll('.excelabu-cell-frozen-col, .excelabu-cell-frozen-both');
+    for (var i = 0; i < frozenCells.length; i++) {
+      var cel = frozenCells[i];
+      var col = parseInt(cel.dataset.col, 10);
+      if (!isNaN(col) && col < fc) {
+        cel.style.left = colLefts[col] + 'px';
+        cel.dataset.frozenLeft = colLefts[col];
+      }
     }
   }
 };
